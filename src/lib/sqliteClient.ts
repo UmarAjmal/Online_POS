@@ -321,6 +321,36 @@ export const sqliteClient = {
   },
 
   auth: {
+    async signUp(params: {
+      fullName: string;
+      email: string;
+      password: string;
+      phone?: string;
+      businessName: string;
+      industryType?: string;
+      businessPhone?: string;
+      address?: string;
+      footerNote?: string;
+      currency?: string;
+      themePreset?: string;
+    }) {
+      const res = await fetch("/api/sqlite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "signup",
+          ...params,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.error) {
+        return { data: null, error: new Error(json.error) };
+      }
+
+      return { data: json.data, error: null };
+    },
+
     async signInWithPassword({ email, password }: { email: string; password?: string }) {
       const res = await fetch("/api/sqlite", {
         method: "POST",

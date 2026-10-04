@@ -198,12 +198,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Also load from DB if available for cross-browser sync
     const fetchDbTheme = async () => {
       try {
+        let currentShopId = "ar-group-shop-001";
+        const cachedUser = typeof window !== "undefined" ? localStorage.getItem("argroup_user") : null;
+        if (cachedUser) {
+          try {
+            const u = JSON.parse(cachedUser);
+            if (u.shop_id) currentShopId = u.shop_id;
+          } catch {}
+        }
+
         const res = await fetch("/api/sqlite", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "select",
             table: "shops",
+            filters: [{ col: "id", op: "eq", val: currentShopId }],
             limit: 1,
           }),
         });
@@ -265,6 +275,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const saveThemeToDb = async (): Promise<boolean> => {
     try {
+      let currentShopId = "ar-group-shop-001";
+      if (typeof window !== "undefined") {
+        const cachedUser = localStorage.getItem("argroup_user");
+        if (cachedUser) {
+          try {
+            const u = JSON.parse(cachedUser);
+            if (u.shop_id) currentShopId = u.shop_id;
+          } catch {}
+        }
+      }
+
       const res = await fetch("/api/sqlite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,7 +295,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           data: {
             theme_settings: JSON.stringify(theme),
           },
-          filters: [{ col: "id", op: "eq", val: "ar-group-shop-001" }],
+          filters: [{ col: "id", op: "eq", val: currentShopId }],
         }),
       });
       return res.ok;

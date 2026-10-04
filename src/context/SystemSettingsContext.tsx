@@ -45,15 +45,29 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
   const [loading, setLoading] = useState(true);
 
+  const getActiveShopId = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("argroup_user");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.shop_id) return parsed.shop_id;
+        }
+      } catch {}
+    }
+    return "ar-group-shop-001";
+  };
+
   const fetchFromDb = async () => {
     try {
+      const activeShopId = getActiveShopId();
       const res = await fetch("/api/sqlite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "select",
           table: "shops",
-          filters: [{ col: "id", op: "eq", val: "ar-group-shop-001" }],
+          filters: [{ col: "id", op: "eq", val: activeShopId }],
           limit: 1,
           maybeSingle: true,
         }),
@@ -109,6 +123,7 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
     } catch { }
 
     try {
+      const activeShopId = getActiveShopId();
       const res = await fetch("/api/sqlite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,7 +142,7 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
             footer_note: merged.footerNote,
             updated_at: new Date().toISOString(),
           },
-          filters: [{ col: "id", op: "eq", val: "ar-group-shop-001" }],
+          filters: [{ col: "id", op: "eq", val: activeShopId }],
         }),
       });
 

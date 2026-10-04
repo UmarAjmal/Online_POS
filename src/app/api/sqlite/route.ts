@@ -166,6 +166,250 @@ export async function POST(req: NextRequest) {
     if (action === "init") {
       return NextResponse.json({ data: { ok: true, message: "Database initialized successfully" }, error: null });
     }
+    if (action === "signup") {
+      const {
+        fullName,
+        email,
+        password,
+        phone,
+        businessName,
+        industryType = "retail",
+        businessPhone,
+        address,
+        footerNote = "Thank you for shopping with us! Please come again.",
+        currency = "PKR",
+        themePreset = "emerald",
+      } = body;
+
+      const cleanEmail = String(email || "").trim().toLowerCase();
+      const cleanPassword = String(password || "").trim();
+      const cleanName = String(fullName || "").trim();
+      const cleanBusiness = String(businessName || "").trim();
+
+      if (!cleanName) {
+        return NextResponse.json({ error: "Full Name is required." }, { status: 400 });
+      }
+      if (!cleanEmail) {
+        return NextResponse.json({ error: "Email or username is required." }, { status: 400 });
+      }
+      if (!cleanPassword || cleanPassword.length < 4) {
+        return NextResponse.json({ error: "Password must be at least 4 characters." }, { status: 400 });
+      }
+      if (!cleanBusiness) {
+        return NextResponse.json({ error: "Business / Shop Name is required." }, { status: 400 });
+      }
+
+      // Check if email already taken
+      const existingUser: any = await dbClient.get(
+        "SELECT id FROM user_profiles WHERE LOWER(email) = LOWER(?) LIMIT 1",
+        [cleanEmail]
+      );
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "An account with this email/username already exists. Please sign in." },
+          { status: 409 }
+        );
+      }
+
+      // Generate IDs
+      const businessSlug = cleanBusiness
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 20) || "shop";
+      const shopId = `shop-${businessSlug}-${Date.now().toString(36)}`;
+      const userId = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const nowIso = new Date().toISOString();
+
+      // Full unlocked permissions
+      const fullPermissions = JSON.stringify({
+        panels: {
+          dashboard: true,
+          pos: true,
+          sales: true,
+          registers: true,
+          purchase: true,
+          products: true,
+          categories: true,
+          brands: true,
+          units: true,
+          khata: true,
+          returns: true,
+          expenses: true,
+          accounts: true,
+          reports: true,
+          staff: true,
+          pharmacy: true,
+          expiry: true,
+          formulas: true,
+        },
+        actions: {
+          edit_bill: true,
+          delete_bill: true,
+          edit_account: true,
+          delete_account: true,
+          allow_wholesale: true,
+          allow_discounts: true,
+          view_cost: true,
+        },
+      });
+
+      // Insert Shop
+      await dbClient.run(
+        `INSERT INTO shops (
+          id, name, industry_type, owner_id, address, phone, email,
+          footer_note, currency, subscription_tier,
+          allow_negative_stock, has_emi, has_payroll, has_tax, has_assets_rec,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'enterprise', 1, 1, 1, 1, 1, ?, ?)`,
+        [
+          shopId,
+          cleanBusiness,
+          industryType,
+          userId,
+          address || null,
+          businessPhone || phone || null,
+          cleanEmail,
+          footerNote,
+          currency,
+          nowIso,
+          nowIso,
+        ]
+      );
+
+      // Insert User Profile
+      await dbClient.run(
+        `INSERT INTO user_profiles (
+          id, shop_id, name, role, email, password, phone, permissions, created_at, updated_at
+        ) VALUES (?, ?, ?, 'superadmin', ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          shopId,
+          cleanName,
+          cleanEmail,
+          cleanPassword,
+          phone || null,
+          fullPermissions,
+          nowIso,
+          nowIso,
+        ]
+      );
+
+      // Insert Default Roles for this shop
+      const rolesToInsert = [
+        {
+          id: `role-admin-${shopId}`,
+          name: "Owner / Superadmin",
+          desc: "Full administrative and financial access",
+          perms: fullPermissions,
+        },
+        {
+          id: `role-manager-${shopId}`,
+          name: "Store Manager",
+          desc: "Manages inventory, purchases, and cashier audits",
+          perms: fullPermissions,
+        },
+        {
+          id: `role-cashier-${shopId}`,
+          name: "Cashier",
+          desc: "Counter sales, barcode billing, and receipt printing",
+          perms: JSON.stringify({
+            panels: { dashboard: true, pos: true, sales: true, registers: true, returns: true },
+            actions: { edit_bill: false, delete_bill: false, allow_discounts: true },
+          }),
+        },
+      ];
+
+      for (const r of rolesToInsert) {
+        try {
+          await dbClient.run(
+            `INSERT INTO roles (id, shop_id, name, description, is_system, permissions, created_at, updated_at)
+             VALUES (?, ?, ?, ?, 1, ?, ?, ?)`,
+            [r.id, shopId, r.name, r.desc, r.perms, nowIso, nowIso]
+          );
+        } catch {}
+      }
+
+      // Insert Default Cash Account
+      try {
+        await dbClient.run(
+          `INSERT INTO cash_accounts (id, shop_id, account_name, account_type, current_balance, is_default, created_at)
+           VALUES (?, ?, 'Main Cash Register', 'cash', 0, 1, ?)`,
+          [`ca-${shopId}`, shopId, nowIso]
+        );
+      } catch {}
+
+      // Insert Default Common Units for this shop
+      const defaultUnits = [
+        { name: "Piece", code: "pcs", factor: 1 },
+        { name: "Pack", code: "pack", factor: 10 },
+        { name: "Box", code: "box", factor: 20 },
+        { name: "Carton", code: "ctn", factor: 100 },
+        { name: "Kilogram", code: "kg", factor: 1 },
+        { name: "Liter", code: "ltr", factor: 1 },
+      ];
+
+      for (const u of defaultUnits) {
+        try {
+          await dbClient.run(
+            `INSERT INTO units (id, shop_id, name, code, conversion_factor, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [`unit-${u.code}-${shopId}`, shopId, u.name, u.code, u.factor, nowIso]
+          );
+        } catch {}
+      }
+
+      // Insert Security Settings for this shop
+      try {
+        await dbClient.run(
+          `INSERT INTO security_settings (id, shop_id, session_timeout_mins, single_session_only, max_failed_attempts, lockout_duration_mins, created_at, updated_at)
+           VALUES (?, ?, 120, 0, 5, 15, ?, ?)`,
+          [`sec-${shopId}`, shopId, nowIso, nowIso]
+        );
+      } catch {}
+
+      // Insert Welcome Notification
+      try {
+        await dbClient.run(
+          `INSERT INTO notifications (id, shop_id, user_id, actor_name, actor_role, type, module, title, message, created_at)
+           VALUES (?, ?, ?, ?, 'System', 'success', 'system', 'Welcome to Falcon Swift POS!', ?, ?)`,
+          [
+            `notif-${Date.now()}`,
+            shopId,
+            userId,
+            cleanName,
+            `Congratulations! Your business "${cleanBusiness}" has been successfully set up. All POS and inventory modules are ready.`,
+            nowIso,
+          ]
+        );
+      } catch {}
+
+      // Invalidate server cache
+      serverCache.clearAll();
+
+      return NextResponse.json({
+        data: {
+          ok: true,
+          message: "Account and business created successfully!",
+          user: {
+            id: userId,
+            email: cleanEmail,
+            name: cleanName,
+            role: "superadmin",
+            shop_id: shopId,
+            shop_name: cleanBusiness,
+            industry_type: industryType,
+            subscription_tier: "enterprise",
+          },
+          shop: {
+            id: shopId,
+            name: cleanBusiness,
+          },
+        },
+        error: null,
+      });
+    }
 
     if (action === "login") {
       const { email, password } = body;
