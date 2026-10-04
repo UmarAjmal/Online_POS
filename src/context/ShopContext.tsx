@@ -152,19 +152,18 @@ const ShopContext = createContext<ShopContextType>(defaultContext);
 export const useShop = () => useContext(ShopContext);
 
 export function ShopProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<ShopContextType>(() => {
-    const cached = readCachedUser();
-    if (cached?.shop_id) {
-      return stateFromUser(cached);
-    }
-    return defaultContext;
-  });
+  const [state, setState] = useState<ShopContextType>(defaultContext);
 
   useEffect(() => {
     let active = true;
 
+    // Immediately hydrate cached user on client mount to match local storage without SSR mismatch
+    const cached = readCachedUser();
+    if (cached?.shop_id) {
+      setState(stateFromUser(cached));
+    }
+
     const syncSession = async () => {
-      const cached = readCachedUser();
 
       if (cached?.id) {
         // If state is not yet hydrated with cached user, hydrate immediately

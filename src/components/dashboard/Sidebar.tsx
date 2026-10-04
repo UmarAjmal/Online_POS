@@ -460,7 +460,7 @@ export function Sidebar({
               className="h-9 w-9 rounded-full flex items-center justify-center border shrink-0 shadow-sm"
               style={{ backgroundColor: theme.sidebarActive, borderColor: theme.sidebarBorder }}
             >
-              <span className="text-white font-bold text-sm">{userName?.charAt(0) || 'U'}</span>
+              <span className="text-white font-bold text-sm">{mounted ? (userName?.charAt(0) || 'U') : 'U'}</span>
             </div>
             {isExpanded && (
               <div className="flex-1 min-w-0">
@@ -478,7 +478,7 @@ export function Sidebar({
               </div>
             )}
           </div>
-          {isExpanded && !loading && (
+          {mounted && isExpanded && !loading && (
             <button
               onClick={handleLogout}
               className="p-1.5 text-stone-300 hover:text-white rounded-lg transition-colors shrink-0 cursor-pointer"
