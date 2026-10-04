@@ -5,15 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight,
-  Sparkles,
   CheckCircle2,
   ShoppingCart,
   Package,
   BookOpen,
-  Database,
-  MessageCircle,
   ShieldCheck,
-  Zap,
+  MessageCircle,
 } from "lucide-react";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
@@ -54,14 +51,9 @@ export default function HomePage() {
             {/* Left Text & Actions */}
             <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
               
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-xs font-bold text-emerald-800 shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Falcon Swift PVT. LTD. • AR Group POS</span>
-              </div>
-
               <div className="space-y-3">
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
-                  Smart Pharmacy & <br className="hidden sm:block" />
+                  Universal Point of Sale & <br className="hidden sm:block" />
                   <span 
                     className="bg-clip-text text-transparent"
                     style={{
@@ -72,7 +64,7 @@ export default function HomePage() {
                   </span>
                 </h2>
                 <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                  Complete retail billing, medicine expiry tracker, multi-pack inventory, khata ledger, and accounts in one unified 100% offline-ready software.
+                  Complete cashier billing, multi-pack inventory, customer khata ledgers, and accounts in one unified system. Built for retail marts, wholesale, superstores, pharmacies, and commercial shops.
                 </p>
               </div>
 
@@ -100,7 +92,7 @@ export default function HomePage() {
               <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs text-stone-500 font-medium">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>100% Offline SQLite</span>
+                  <span>Fast & Secure POS Counter</span>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -114,13 +106,13 @@ export default function HomePage() {
 
             </div>
 
-            {/* Right Vector Illustration (pharmacy.jpg) */}
+            {/* Right Vector Illustration */}
             <div className="lg:col-span-6 flex justify-center items-center">
               <div className="relative w-full max-w-md lg:max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-stone-200/80 bg-white p-2 group hover:shadow-emerald-950/10 transition-all duration-500">
                 <div className="relative rounded-2xl overflow-hidden aspect-[4/3] bg-teal-50/50">
                   <Image
                     src="/pharmacy.jpg"
-                    alt="Pharmacy Management Illustration"
+                    alt="POS Management Illustration"
                     fill
                     priority
                     className="object-cover group-hover:scale-105 transition-transform duration-700"
@@ -161,8 +153,8 @@ export default function HomePage() {
               },
               {
                 icon: Package,
-                title: "Batch & Expiry Tracker",
-                desc: "Never let medicines expire on shelves. Automatic 30/60/90-day color-coded alerts.",
+                title: "Inventory & Expiry Tracker",
+                desc: "Complete stock visibility, multi-pack units, and automated near-expiry alerts.",
               },
               {
                 icon: BookOpen,
@@ -170,9 +162,9 @@ export default function HomePage() {
                 desc: "Customer & supplier accounts with 1-click WhatsApp balance statement sending.",
               },
               {
-                icon: Database,
-                title: "100% Offline SQLite",
-                desc: "Zero internet dependency. Fast, reliable local database with 1-click USB backups.",
+                icon: ShieldCheck,
+                title: "Data Safety & Backups",
+                desc: "Instant local backups to USB or drive. Your records remain private and secure.",
               },
             ].map((mod, idx) => {
               const Icon = mod.icon;
@@ -208,18 +200,13 @@ export default function HomePage() {
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
               <div className="lg:col-span-8 space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Affordable Subscription • ماہانہ پیکج</span>
-                </div>
-
                 <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight">
-                  Universal Pharmacy & Retail Pro — Just{" "}
+                  Universal Business & Retail Pro — Just{" "}
                   <span className="text-emerald-400">Rs. 3,000</span> / month
                 </h3>
 
                 <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
-                  Unlock all 8+ business modules, unlimited transactions, offline SQLite safety, free automatic updates, and dedicated WhatsApp support. No setup fees, no lock-in.
+                  Unlock all 8+ business modules, unlimited transactions, instant data backups, free automatic updates, and dedicated WhatsApp support. No setup fees, no lock-in.
                 </p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 text-xs font-medium text-stone-200">
@@ -229,11 +216,11 @@ export default function HomePage() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Offline SQLite DB</span>
+                    <span>Fast Counter Speed</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Expiry Date Alerts</span>
+                    <span>Stock & Expiry Alerts</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -262,7 +249,7 @@ export default function HomePage() {
                 </div>
 
                 <a
-                  href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to activate the Rs. 3,000/month subscription for AR Group Pharmacy POS.")}`}
+                  href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to activate the Rs. 3,000/month subscription for Falcon Swift POS.")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-white font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"

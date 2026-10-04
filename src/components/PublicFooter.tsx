@@ -3,13 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Phone, MapPin, ShieldCheck, MessageCircle, Heart, ArrowRight } from "lucide-react";
+import { MessageCircle, ArrowRight } from "lucide-react";
 import { NATechHubBadge } from "@/components/NATechHubBadge";
-import { useTheme } from "@/context/ThemeContext";
 
 export function PublicFooter() {
-  const { theme } = useTheme();
-
   return (
     <footer className="border-t border-stone-200 bg-white/80 backdrop-blur-md relative z-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
@@ -38,13 +35,8 @@ export function PublicFooter() {
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              Empowering pharmacies, medical stores, clinics, and retail marts with fast billing, offline SQLite reliability, and automated khata ledgers.
+              Universal Point of Sale and Business ERP system built for retail stores, supermarts, pharmacies, wholesale distribution, and commercial counters.
             </p>
-
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px] font-semibold text-emerald-800">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>100% Offline SQLite Architecture</span>
-            </div>
           </div>
 
           {/* Column 2: Quick Links */}
@@ -68,7 +60,7 @@ export function PublicFooter() {
               <li>
                 <Link href="/plan" className="hover:text-emerald-700 transition-colors flex items-center gap-1.5">
                   <ArrowRight className="w-3 h-3 text-stone-400" />
-                  <span>Pricing & Plan (Rs. 3,000/mo)</span>
+                  <span>Pricing & Plan</span>
                 </Link>
               </li>
               <li>
@@ -92,19 +84,19 @@ export function PublicFooter() {
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Medicine Batch & Expiry Tracker</span>
+                <span>Inventory & Stock Tracking</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Customer & Supplier Khata Ledgers</span>
+                <span>Customer & Supplier Khata</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Multi-Pack Units (Box / Strip / Tab)</span>
+                <span>Cash Register & Shift Control</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>12+ PDF Statements & P&L Reports</span>
+                <span>12+ Financial & Audit Reports</span>
               </li>
             </ul>
           </div>
@@ -123,20 +115,14 @@ export function PublicFooter() {
               >
                 <MessageCircle className="w-4 h-4 text-[#25D366] fill-[#25D366]" />
                 <div>
-                  <span className="text-[10px] text-emerald-700 block font-normal">WhatsApp Agent</span>
+                  <span className="text-[10px] text-emerald-700 block font-normal">Official WhatsApp Support</span>
                   <span>0326 3392082</span>
                 </div>
               </a>
 
-              <div className="flex items-start gap-2 text-stone-600">
-                <MapPin className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <span>Chak No. 102/15-L, Mian Channu, Punjab, Pakistan</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-stone-600">
-                <Phone className="w-4 h-4 text-stone-400 shrink-0" />
-                <span>Proprietor: Aamish Rehmani (0326 1527022)</span>
-              </div>
+              <p className="text-[11px] text-stone-500">
+                Available 7 days a week for software activation, inquiries, and customer assistance.
+              </p>
             </div>
           </div>
 

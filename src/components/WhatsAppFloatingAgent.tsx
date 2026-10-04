@@ -38,17 +38,17 @@ export function WhatsAppFloatingAgent({ phoneNumber = "03263392082" }: WhatsAppF
   const quickPrompts = [
     {
       label: "Subscribe to Monthly Plan (Rs. 3,000/mo)",
-      text: "Assalam-o-Alaikum! I am interested in subscribing to the AR Group Pharmacy POS monthly plan (Rs. 3,000/month). Please guide me on activation.",
+      text: "Assalam-o-Alaikum! I am interested in subscribing to the Falcon Swift POS monthly plan (Rs. 3,000/month). Please guide me on activation.",
       badge: "Rs. 3,000/mo",
     },
     {
       label: "Schedule Live Demo & Product Info",
-      text: "Assalam-o-Alaikum! I want to see a live demo and learn more about the AR Group Pharmacy & Retail POS system.",
+      text: "Assalam-o-Alaikum! I want to see a live demo and learn more about the Falcon Swift Business & Retail POS system.",
       badge: "Free Demo",
     },
     {
       label: "General Question / Technical Support",
-      text: "Assalam-o-Alaikum! I have a question regarding the pharmacy POS system installation and setup.",
+      text: "Assalam-o-Alaikum! I have a question regarding the POS system installation and setup.",
       badge: "Support",
     },
   ];
@@ -102,7 +102,7 @@ export function WhatsAppFloatingAgent({ phoneNumber = "03263392082" }: WhatsAppF
                 Assalam-o-Alaikum! 👋
               </p>
               <p className="text-xs text-stone-600 leading-relaxed">
-                Welcome to <strong>Falcon Swift PVT. LTD.</strong> (AR Group POS). How can we help you today with your pharmacy or retail shop?
+                Welcome to <strong>Falcon Swift PVT. LTD.</strong> How can we help you today with your retail store, mart, or pharmacy?
               </p>
               <div className="pt-1 flex items-center justify-between text-[10px] text-stone-400">
                 <span>Official Customer Care</span>

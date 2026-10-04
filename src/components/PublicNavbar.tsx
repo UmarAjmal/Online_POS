@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Menu, X, Phone, Sparkles, MessageCircle } from "lucide-react";
+import { ArrowRight, Menu, X, MessageCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 interface PublicNavbarProps {
@@ -19,15 +19,11 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
   const navLinks = [
     { label: "Home", href: "/" },
     { label: "Product & Modules", href: "/product" },
-    { 
-      label: "Pricing & Plans", 
-      href: "/plan",
-      badge: "Rs. 3,000/mo",
-    },
+    { label: "Pricing & Plans", href: "/plan" },
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-stone-200/70 transition-colors">
+    <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-stone-200/70 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between">
         
         {/* ─── BRAND LOGO & TITLE ─── */}
@@ -43,9 +39,6 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
             />
           </div>
           <div>
-            <span className="text-xs uppercase tracking-widest text-stone-400 font-bold block">
-              AR Group POS
-            </span>
             <h1 className="text-sm sm:text-base font-black tracking-tight text-slate-900 leading-tight">
               Falcon Swift PVT. LTD.
             </h1>
@@ -60,7 +53,7 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
               <Link
                 key={link.href}
                 href={link.href}
-                className={`relative px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`relative px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center cursor-pointer ${
                   isActive
                     ? "text-white shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-950 hover:bg-stone-100/80"
@@ -72,11 +65,6 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
                 }
               >
                 <span>{link.label}</span>
-                {link.badge && !isActive && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    {link.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -85,7 +73,7 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
         {/* ─── DESKTOP ACTIONS ─── */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to inquire about AR Group Pharmacy POS.")}`}
+            href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to inquire about Falcon Swift Business POS.")}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs font-bold text-stone-700 hover:text-emerald-700 px-3 py-2 rounded-xl hover:bg-stone-100 transition-colors"
@@ -96,7 +84,7 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
 
           <Link
             href="/login"
-            className="px-4.5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:opacity-95 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            className="px-4.5 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:opacity-95 active:scale-95 flex items-center gap-1.5 cursor-pointer"
             style={{ backgroundColor: theme.primaryColor || "#16a34a" }}
           >
             <span>Staff Login</span>
@@ -146,20 +134,13 @@ export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps)
                 }
               >
                 <span>{link.label}</span>
-                {link.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    isActive ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-                  }`}>
-                    {link.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
 
           <div className="pt-2 border-t border-stone-100 flex flex-col gap-2">
             <a
-              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to inquire about AR Group Pharmacy POS.")}`}
+              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to inquire about Falcon Swift Business POS.")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-xs border border-emerald-200"

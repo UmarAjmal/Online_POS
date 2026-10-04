@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   ShoppingCart,
   Package,
@@ -12,20 +11,14 @@ import {
   Shield,
   Database,
   Printer,
-  Sparkles,
   CheckCircle2,
   ArrowRight,
-  Zap,
-  Clock,
   Layers,
-  Search,
   MessageCircle,
-  HelpCircle,
   Tablet,
-  Barcode,
   Truck,
-  Building2,
   Languages,
+  ShieldCheck,
 } from "lucide-react";
 import { PublicNavbar } from "@/components/PublicNavbar";
 import { PublicFooter } from "@/components/PublicFooter";
@@ -56,20 +49,20 @@ export default function ProductPage() {
     },
     {
       id: "inventory",
-      category: "pharmacy",
-      title: "Pharmacy Inventory & Expiry Tracker",
-      tagline: "Total stock visibility with batch and formula intelligence",
+      category: "inventory",
+      title: "Inventory, Batches & Expiry Management",
+      tagline: "Total stock visibility with batch, unit, and reorder intelligence",
       icon: Package,
       color: "#0d9488",
       features: [
-        "Batch number and expiry date tracking for every stock batch",
+        "Track items by barcode, batch number, serial, and expiry date",
         "Color-coded near-expiry alerts (30, 60, and 90 days prior)",
-        "Multi-pack unit conversion: Box ⇄ Strip ⇄ Tablet automatically calculated",
-        "Generic salt & formula search for instant alternative medicine lookup",
+        "Multi-pack unit conversion: Box ⇄ Strip ⇄ Piece/Unit automatically calculated",
+        "Generic formula and category search for quick alternative lookup",
         "Low stock and re-order level triggers to prevent out-of-stock losses",
         "Bulk inventory import/export via Excel/CSV",
       ],
-      urduDesc: "میڈیسن بیچ نمبر، تاریخ تنسیخ (ایکسپائری) الرٹس اور ڈبہ/پتا/گولی خودکار حساب",
+      urduDesc: "اسٹاک کا مکمل انتظام، بیچ نمبر، تاریخ تنسیخ (ایکسپائری) الرٹس اور ڈبہ/پتا/یونٹ حساب",
     },
     {
       id: "khata",
@@ -107,15 +100,15 @@ export default function ProductPage() {
     },
     {
       id: "purchase",
-      category: "pharmacy",
+      category: "inventory",
       title: "Purchase Orders & Vendor Receiving",
-      tagline: "Streamline procurement from pharma distributors and suppliers",
+      tagline: "Streamline procurement from distributors and wholesale suppliers",
       icon: Truck,
       color: "#4f46e5",
       features: [
         "Purchase order (PO) generation with automatic supplier ledger sync",
-        "Inward delivery verification against invoices and bonus pack tracking",
-        "Trade price (TP), maximum retail price (MRP), and margin calculations",
+        "Inward delivery verification against invoices and bonus scheme tracking",
+        "Cost price, maximum retail price (MRP), and margin calculations",
         "Purchase return handling with credit note adjustments",
         "Supplier payment records and upcoming payment reminders",
         "Historical purchase cost tracking for price change insights",
@@ -147,7 +140,7 @@ export default function ProductPage() {
       icon: Shield,
       color: "#0891b2",
       features: [
-        "Pre-built roles: Admin, Store Manager, Senior Cashier, Pharmacist",
+        "Pre-built roles: Admin, Store Manager, Senior Cashier, Staff",
         "Granular permission switches for price modification, discounts, and voids",
         "Audit logs tracking every critical activity, deletion, or modification",
         "Secure PIN / password authentication for sensitive actions",
@@ -159,19 +152,19 @@ export default function ProductPage() {
     {
       id: "database",
       category: "security",
-      title: "Offline SQLite Engine & 1-Click Backups",
-      tagline: "100% data ownership with zero cloud subscription hostage risk",
+      title: "Secure Local Database & 1-Click Backups",
+      tagline: "Private business records with instant USB and local drive backups",
       icon: Database,
       color: "#059669",
       features: [
-        "Local SQLite database engine running independently on your computer",
-        "No internet required for billing, stock search, or reports",
-        "Instant 1-Click offline backup to USB drive or local hard drive",
-        "Safe database VACUUM & optimization tools for peak performance",
+        "High-performance local database running directly on your computer",
+        "Fast response time even with catalogs of 50,000+ items",
+        "Instant 1-Click backup to USB drive or local hard drive",
+        "Safe database maintenance tools for peak long-term speed",
         "Fast restore facility in case of computer hardware change",
         "Encrypted local session management to safeguard business data",
       ],
-      urduDesc: "انٹرنیٹ کے بغیر 100 فیصد آف لائن چلنے والا محفوظ ڈیٹا بیس اور یو ایس بی بیک اپ",
+      urduDesc: "محفوظ لوکل ڈیٹا بیس، تیز رفتار ریکارڈز اور ایک کلک پر یو ایس بی بیک اپ",
     },
   ];
 
@@ -182,23 +175,23 @@ export default function ProductPage() {
 
   const pillars = [
     {
-      title: "100% Offline Independence",
-      desc: "Operates seamlessly without active internet. No cloud downtime or subscription lockouts.",
-      icon: Database,
+      title: "Fast Counter Speed",
+      desc: "Instant search and barcode scanning engineered for high-volume customer queues.",
+      icon: ShoppingCart,
     },
     {
       title: "Multi-Pack Unit Math",
-      desc: "Sell medicines in full boxes, blister strips, or loose tablets with accurate fractional stock deduction.",
+      desc: "Sell in cartons, boxes, strips, or loose units with automatic fractional stock deduction.",
       icon: Tablet,
     },
     {
       title: "Bilingual Urdu & English",
-      desc: "Full Urdu Nastaliq interface allows staff of any background to operate the system comfortably.",
+      desc: "Full Urdu Nastaliq interface allows staff of any background to operate the counter smoothly.",
       icon: Languages,
     },
     {
       title: "Universal Hardware Support",
-      desc: "Works with any standard USB barcode scanner, 80mm/58mm thermal printers, and cash drawers.",
+      desc: "Works with standard USB barcode scanners, 80mm/58mm thermal printers, and cash drawers.",
       icon: Printer,
     },
   ];
@@ -223,25 +216,20 @@ export default function ProductPage() {
         
         {/* ─── HERO HEADER ─── */}
         <section className="px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-12 max-w-6xl mx-auto text-center space-y-5">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Universal Business & Pharmacy ERP</span>
-          </div>
-
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15] max-w-4xl mx-auto">
-            Everything your shop needs to run{" "}
+            Everything your business needs to run{" "}
             <span 
               className="bg-clip-text text-transparent"
               style={{
                 backgroundImage: `linear-gradient(135deg, ${theme.primaryColor || "#16a34a"} 0%, #047857 100%)`,
               }}
             >
-              faster, smarter, and offline
+              faster, smarter, and organized
             </span>
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            A comprehensive, high-speed retail and pharmacy operating system built to streamline cashier billing, expiry management, khata ledgers, and accounts.
+            A comprehensive, high-speed point of sale and business ERP system built to streamline cashier billing, inventory, khata ledgers, and financial accounts.
           </p>
 
           {/* Quick CTA row */}
@@ -256,7 +244,7 @@ export default function ProductPage() {
             </Link>
 
             <a
-              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to request a live demo of the AR Group Pharmacy POS.")}`}
+              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to request a live demo of Falcon Swift POS.")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-3.5 rounded-2xl bg-white text-stone-800 hover:text-emerald-800 border border-stone-200 hover:border-emerald-300 font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center gap-2"
@@ -304,7 +292,7 @@ export default function ProductPage() {
                 Software Modules & Capabilities
               </h2>
               <p className="text-xs sm:text-sm text-stone-600 mt-1">
-                Explore the modular architecture powering day-to-day pharmacy and retail workflows.
+                Explore the modular architecture powering day-to-day retail, wholesale, and shop workflows.
               </p>
             </div>
 
@@ -313,7 +301,7 @@ export default function ProductPage() {
               {[
                 { key: "all", label: "All Modules" },
                 { key: "sales", label: "POS & Billing" },
-                { key: "pharmacy", label: "Pharmacy Stock" },
+                { key: "inventory", label: "Inventory & Stock" },
                 { key: "accounts", label: "Khata & Cash" },
                 { key: "reports", label: "Reports" },
                 { key: "security", label: "Security & Backup" },
@@ -387,7 +375,7 @@ export default function ProductPage() {
                   {/* Card bottom indicator */}
                   <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
                     <span className="font-semibold uppercase text-[10px] tracking-wider text-emerald-700">
-                      Offline Ready • Full Access
+                      High Speed • Full Access
                     </span>
                     <Link
                       href="/plan"
@@ -412,20 +400,20 @@ export default function ProductPage() {
                 Universal Versatility
               </span>
               <h3 className="text-2xl sm:text-3xl font-black tracking-tight">
-                Designed for Pharmacies, Adaptable to Any Retail Counter
+                Built for All Types of Retail & Wholesale Outlets
               </h3>
               <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-                Whether you operate a small community medical store, a busy hospital pharmacy, a cosmetic outlet, or a grocery mart, the system configures in minutes to match your shop’s exact workflow.
+                Whether you operate a general retail mart, a busy pharmacy, a cosmetic shop, a wholesale distribution agency, or a grocery superstore, the system adapts seamlessly to your counter.
               </p>
             </div>
 
             <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
               {[
-                { title: "Retail Pharmacies", sub: "Medicine expiry & units" },
-                { title: "Clinics & Dispensaries", sub: "Doctor & patient khata" },
-                { title: "Cosmetics & Care", sub: "Barcode billing & brands" },
                 { title: "General Supermarts", sub: "Fast cashier counters" },
+                { title: "Retail Pharmacies", sub: "Medicine expiry & units" },
                 { title: "Wholesale Dealers", sub: "Bulk cartons & ledgers" },
+                { title: "Cosmetics & Care", sub: "Barcode billing & brands" },
+                { title: "Clinics & Dispensaries", sub: "Patient khata & receipts" },
               ].map((ind, idx) => (
                 <div key={idx} className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/15 space-y-1">
                   <p className="font-bold text-xs text-white">{ind.title}</p>
@@ -442,13 +430,13 @@ export default function ProductPage() {
                 Get Started for Rs. 3,000 / month
               </Link>
               <a
-                href="https://wa.me/923263392082?text=Assalam-o-Alaikum!%20I%20want%20to%20know%20if%20AR%20Group%20POS%20is%20suitable%20for%20my%20business."
+                href="https://wa.me/923263392082?text=Assalam-o-Alaikum!%20I%20want%20to%20know%20if%20Falcon%20Swift%20POS%20is%20suitable%20for%20my%20business."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors flex items-center gap-2"
               >
                 <MessageCircle className="w-4 h-4 text-[#25D366] fill-[#25D366]" />
-                <span>Discuss Your Shop Needs (0326 3392082)</span>
+                <span>Discuss Your Business Needs (0326 3392082)</span>
               </a>
             </div>
           </div>

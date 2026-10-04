@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Check,
   Sparkles,
@@ -14,8 +13,6 @@ import {
   Zap,
   Clock,
   Laptop,
-  CheckCircle2,
-  Calendar,
   Lock,
 } from "lucide-react";
 import { PublicNavbar } from "@/components/PublicNavbar";
@@ -27,18 +24,18 @@ export default function PlanPage() {
   const { theme } = useTheme();
 
   const planFeatures = [
-    "Full Access to All 8+ Core Business & Pharmacy Modules",
-    "100% Offline SQLite Architecture (Zero Internet Required)",
-    "Unlimited Products, Barcodes, Medicines & Batches",
+    "Full Access to All 8+ Core Business & Retail Modules",
+    "High-Performance Local Counter Speed (Zero Internet Delays)",
+    "Unlimited Products, Barcodes, Items & Batches",
     "Unlimited Sales Invoices & Customer Transactions",
-    "Color-Coded Batch & Medicine Expiry Date Alerts",
-    "Multi-Pack Unit Conversions (Box ⇄ Strip ⇄ Tablet)",
+    "Batch Tracking & Color-Coded Expiry Date Alerts",
+    "Multi-Pack Unit Conversions (Box ⇄ Strip ⇄ Piece)",
     "Customer & Supplier Khata with 1-Click WhatsApp Statements",
     "Daily Shift Management & Cash Drawer Reconciliation",
-    "Purchase Inward, Vendor Receiving & Delivery Challans",
+    "Purchase Inward, Vendor Receiving & Delivery Invoices",
     "12+ Financial & Audit Reports with PDF/Excel Export",
     "Multi-User Cashier Roles & Security Permissions",
-    "1-Click Offline Database Backup to USB / Local Drive",
+    "Instant 1-Click Local Database Backup to USB / Drive",
     "Free System Updates, Patches & New Features",
     "Priority WhatsApp & Remote Support (0326 3392082)",
     "Free Initial Staff Training & Onboarding Assistance",
@@ -46,8 +43,8 @@ export default function PlanPage() {
 
   const faqs = [
     {
-      q: "Does this software work without the internet?",
-      a: "Yes, 100%! The system is powered by an offline SQLite database running directly on your computer or local network. You can bill, print receipts, and check inventory with zero internet connection.",
+      q: "Does this software work without internet delays?",
+      a: "Yes! The system operates on your computer directly, meaning you can scan barcodes, bill customers, print thermal receipts, and view inventory without any internet buffering or slow connection issues.",
     },
     {
       q: "How does the Rs. 3,000 monthly subscription work?",
@@ -59,7 +56,7 @@ export default function PlanPage() {
     },
     {
       q: "What hardware do I need to run this?",
-      a: "Any standard Windows laptop or desktop PC (Windows 10/11) with at least 4GB RAM. It connects seamlessly to any standard USB barcode scanner and 58mm/80mm thermal receipt printer.",
+      a: "Any standard Windows laptop or desktop PC (Windows 10/11) with at least 4GB RAM. It connects seamlessly to standard USB barcode scanners and 58mm/80mm thermal receipt printers.",
     },
     {
       q: "How quickly can my shop be activated?",
@@ -68,7 +65,7 @@ export default function PlanPage() {
   ];
 
   const subscribeMessage = encodeURIComponent(
-    "Assalam-o-Alaikum! I want to activate the Rs. 3,000/month subscription for AR Group Pharmacy POS. Please share the payment and activation process."
+    "Assalam-o-Alaikum! I want to activate the Rs. 3,000/month subscription for Falcon Swift POS. Please share the payment and activation process."
   );
 
   return (
@@ -91,13 +88,8 @@ export default function PlanPage() {
         
         {/* ─── HEADER ─── */}
         <section className="px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-8 max-w-4xl mx-auto text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Transparent & Affordable Pricing</span>
-          </div>
-
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
-            Simple, honest pricing for your pharmacy.{" "}
+            Simple, honest pricing for your business.{" "}
             <span 
               className="bg-clip-text text-transparent"
               style={{
@@ -109,7 +101,7 @@ export default function PlanPage() {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            Get complete access to all pharmacy & retail POS modules, offline database reliability, and dedicated support for one flat monthly price.
+            Get complete access to all retail & pharmacy POS modules, secure local backups, and dedicated support for one flat monthly price.
           </p>
         </section>
 
@@ -123,7 +115,7 @@ export default function PlanPage() {
               style={{ backgroundColor: theme.primaryColor || "#16a34a" }}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Universal Pharmacy & Retail Pro</span>
+              <span>Universal Business & Retail Pro</span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start mt-4 sm:mt-2">
@@ -171,11 +163,11 @@ export default function PlanPage() {
                 <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-2.5">
                   <div className="flex items-center gap-2.5 text-xs text-stone-700 font-medium">
                     <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>100% Offline SQLite — Never locked out</span>
+                    <span>Fast counter response without cloud lag</span>
                   </div>
                   <div className="flex items-center gap-2.5 text-xs text-stone-700 font-medium">
                     <Lock className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Your data stays on your PC exclusively</span>
+                    <span>Your data stays securely on your PC</span>
                   </div>
                   <div className="flex items-center gap-2.5 text-xs text-stone-700 font-medium">
                     <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -230,10 +222,10 @@ export default function PlanPage() {
                   dir="rtl"
                 >
                   <p className="text-xs font-bold text-emerald-950">
-                    صرف ۳,۰۰۰ روپے ماہانہ میں مکمل فارمیسی سافٹ ویئر حاصل کریں!
+                    صرف ۳,۰۰۰ روپے ماہانہ میں مکمل پوائنٹ آف سیل سافٹ ویئر حاصل کریں!
                   </p>
                   <p className="text-[11px] text-emerald-800 leading-loose">
-                    تمام ماڈیولز، آف لائن اسپیڈ، بلنگ، کسٹمر کھاتہ، ایکسپائری الرٹس اور فوری واٹس ایپ سپورٹ شامل ہے۔
+                    تمام ماڈیولز، تیز رفتار بلنگ، کسٹمر کھاتہ، اسٹاک الرٹس اور فوری واٹس ایپ سپورٹ شامل ہے۔
                   </p>
                 </div>
 
@@ -266,13 +258,13 @@ export default function PlanPage() {
               {
                 step: "02",
                 title: "Remote Installation",
-                desc: "We remotely connect via AnyDesk/TeamViewer to configure your pharmacy database in 15 minutes.",
+                desc: "We remotely connect via AnyDesk/TeamViewer to configure your database in 15 minutes.",
                 icon: Laptop,
               },
               {
                 step: "03",
                 title: "Start Billing & Tracking",
-                desc: "Scan barcodes, print receipts, and manage your inventory with 100% offline security.",
+                desc: "Scan barcodes, print receipts, and manage your inventory with complete peace of mind.",
                 icon: Zap,
               },
             ].map((s, idx) => {
@@ -330,13 +322,13 @@ export default function PlanPage() {
           {/* Still have questions banner */}
           <div className="p-6 rounded-3xl bg-white border border-stone-200 text-center space-y-3 shadow-xs">
             <h4 className="font-bold text-sm text-stone-900">
-              Have questions or need custom multi-branch setup?
+              Have questions or need custom multi-counter setup?
             </h4>
             <p className="text-xs text-stone-600 max-w-md mx-auto">
               Our support team is available 7 days a week on WhatsApp and call.
             </p>
             <a
-              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I have a question regarding AR Group POS subscription.")}`}
+              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I have a question regarding Falcon Swift POS subscription.")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-95 transition-all"
