@@ -1,0 +1,175 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { ArrowRight, Menu, X, Phone, Sparkles, MessageCircle } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+
+interface PublicNavbarProps {
+  phoneNumber?: string;
+}
+
+export function PublicNavbar({ phoneNumber = "03263392082" }: PublicNavbarProps) {
+  const { theme } = useTheme();
+  const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { label: "Home", href: "/" },
+    { label: "Product & Modules", href: "/product" },
+    { 
+      label: "Pricing & Plans", 
+      href: "/plan",
+      badge: "Rs. 3,000/mo",
+    },
+  ];
+
+  return (
+    <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-stone-200/70 transition-colors">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between">
+        
+        {/* ─── BRAND LOGO & TITLE ─── */}
+        <Link href="/" className="flex items-center gap-3 group cursor-pointer">
+          <div className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-0.5 bg-white shadow-xs border border-stone-200/80 group-hover:scale-105 transition-transform">
+            <Image
+              src="/falcon.png"
+              alt="Falcon Swift PVT. LTD."
+              width={44}
+              height={44}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
+          <div>
+            <span className="text-xs uppercase tracking-widest text-stone-400 font-bold block">
+              AR Group POS
+            </span>
+            <h1 className="text-sm sm:text-base font-black tracking-tight text-slate-900 leading-tight">
+              Falcon Swift PVT. LTD.
+            </h1>
+          </div>
+        </Link>
+
+        {/* ─── DESKTOP NAVIGATION ─── */}
+        <nav className="hidden md:flex items-center gap-1.5 lg:gap-2">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`relative px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isActive
+                    ? "text-white shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-950 hover:bg-stone-100/80"
+                }`}
+                style={
+                  isActive
+                    ? { backgroundColor: theme.primaryColor || "#16a34a" }
+                    : undefined
+                }
+              >
+                <span>{link.label}</span>
+                {link.badge && !isActive && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    {link.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* ─── DESKTOP ACTIONS ─── */}
+        <div className="hidden md:flex items-center gap-3">
+          <a
+            href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to inquire about AR Group Pharmacy POS.")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs font-bold text-stone-700 hover:text-emerald-700 px-3 py-2 rounded-xl hover:bg-stone-100 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4 text-[#25D366] fill-[#25D366]" />
+            <span>0326 3392082</span>
+          </a>
+
+          <Link
+            href="/login"
+            className="px-4.5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:opacity-95 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            style={{ backgroundColor: theme.primaryColor || "#16a34a" }}
+          >
+            <span>Staff Login</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        {/* ─── MOBILE HAMBURGER BUTTON ─── */}
+        <div className="flex md:hidden items-center gap-2">
+          <Link
+            href="/login"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-xs flex items-center gap-1"
+            style={{ backgroundColor: theme.primaryColor || "#16a34a" }}
+          >
+            <span>Login</span>
+          </Link>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-xl text-stone-700 hover:bg-stone-100 transition-colors"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
+
+      </div>
+
+      {/* ─── MOBILE DRAWER MENU ─── */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-stone-200 bg-white/95 backdrop-blur-md px-4 py-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all ${
+                  isActive
+                    ? "text-white font-bold"
+                    : "text-stone-700 hover:bg-stone-100"
+                }`}
+                style={
+                  isActive
+                    ? { backgroundColor: theme.primaryColor || "#16a34a" }
+                    : undefined
+                }
+              >
+                <span>{link.label}</span>
+                {link.badge && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    isActive ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                  }`}>
+                    {link.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+          <div className="pt-2 border-t border-stone-100 flex flex-col gap-2">
+            <a
+              href={`https://wa.me/923263392082?text=${encodeURIComponent("Assalam-o-Alaikum! I want to inquire about AR Group Pharmacy POS.")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-50 text-emerald-800 font-bold text-xs border border-emerald-200"
+            >
+              <MessageCircle className="w-4 h-4 text-[#25D366] fill-[#25D366]" />
+              <span>WhatsApp Us: {phoneNumber}</span>
+            </a>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
