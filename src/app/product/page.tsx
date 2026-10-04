@@ -239,7 +239,7 @@ export default function ProductPage() {
               className="px-6 py-3.5 rounded-2xl text-white font-bold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer"
               style={{ backgroundColor: theme.primaryColor || "#16a34a" }}
             >
-              <span>View Subscription Plan (Rs. 3,000/mo)</span>
+              <span>View Subscription Plan</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
@@ -381,7 +381,7 @@ export default function ProductPage() {
                       href="/plan"
                       className="text-stone-700 hover:text-emerald-700 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-all"
                     >
-                      <span>In Plan (Rs. 3,000/mo)</span>
+                      <span>Included in Plan</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
@@ -427,7 +427,7 @@ export default function ProductPage() {
                 href="/plan"
                 className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-xs transition-colors cursor-pointer"
               >
-                Get Started for Rs. 3,000 / month
+                Get Started
               </Link>
               <a
                 href="https://wa.me/923263392082?text=Assalam-o-Alaikum!%20I%20want%20to%20know%20if%20Falcon%20Swift%20POS%20is%20suitable%20for%20my%20business."

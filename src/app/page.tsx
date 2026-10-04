@@ -64,7 +64,7 @@ export default function HomePage() {
                   </span>
                 </h2>
                 <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                  Complete cashier billing, multi-pack inventory, customer khata ledgers, and accounts in one unified system. Built for retail marts, wholesale, superstores, pharmacies, and commercial shops.
+                  Unified cashier billing, multi-unit inventory, digital khata ledgers, and accounts in one modern POS system.
                 </p>
               </div>
 
@@ -72,19 +72,11 @@ export default function HomePage() {
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <Link
                   href="/plan"
-                  className="w-full sm:w-auto px-7 py-3.5 rounded-2xl text-white font-bold text-sm shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer group"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl text-white font-bold text-sm shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer group"
                   style={{ backgroundColor: theme.primaryColor || "#16a34a" }}
                 >
-                  <span>Get Started (Rs. 3,000/mo)</span>
+                  <span>Get Started</span>
                   <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-
-                <Link
-                  href="/product"
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white text-stone-800 hover:text-emerald-800 border border-stone-200 hover:border-emerald-300 font-bold text-sm shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Explore Modules</span>
-                  <ArrowRight size={15} />
                 </Link>
               </div>
 
