@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Falcon Swift PVT. LTD. of Companies | Al Madina Commission Agent, Petroleum Service & Rehmani Zarai Farm",
-  description: "Official portal of Falcon Swift PVT. LTD. of Companies. Al Madina Commission Agent, Al Madina Petroleum Service, and Rehmani Zarai Farm. Prop: Aamish Rehmani - Chak No 102/15L Mian Channu. Contact: 03261527022.",
+  title: "Falcon Swift Business POS",
+  description: "Modern cloud and offline Point of Sale & Inventory Management System for Retail, Supermarts, Wholesale and Pharmacies.",
 };
 
 export default function RootLayout({

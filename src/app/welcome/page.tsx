@@ -23,24 +23,45 @@ import { NATechHubBadge } from "@/components/NATechHubBadge";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { shopId, shopName, userName, industryType, loading, ready } = useShop();
+  const { shopId, shopName, userName, industryType, loading } = useShop();
   const { theme } = useTheme();
   const { language } = useLanguage();
   const isUrdu = language === "ur";
   const [mounted, setMounted] = useState(false);
+  const [cachedUser, setCachedUser] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      const saved = localStorage.getItem("argroup_user");
+      if (saved) {
+        setCachedUser(JSON.parse(saved));
+      } else {
+        // If not logged in, redirect to login page after brief moment
+        const timer = setTimeout(() => {
+          router.replace("/login");
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      router.replace("/login");
+    }
+  }, [router]);
+
+  const activeShopId = shopId || cachedUser?.shop_id;
+  const activeShopName = shopName || cachedUser?.shop_name || "My Business";
+  const activeUserName = userName || cachedUser?.name || "Business Owner";
+  const activeIndustry = industryType || cachedUser?.industry_type || "Retail POS";
 
   const handleLaunchDashboard = () => {
-    if (typeof window !== "undefined" && shopId) {
-      localStorage.setItem(`argroup_welcome_seen_${shopId}`, "true");
+    if (typeof window !== "undefined" && activeShopId) {
+      localStorage.setItem(`argroup_welcome_seen_${activeShopId}`, "true");
     }
     router.push("/dashboard");
   };
 
-  if (!mounted || loading) {
+  // Only show loading spinner on initial client hydration if we don't have user yet
+  if (!mounted && !activeShopId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f7f5]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
@@ -113,7 +134,7 @@ export default function WelcomePage() {
 
         <div className="flex items-center gap-2 text-xs font-semibold text-stone-600 bg-white/80 px-3 py-1.5 rounded-xl border border-stone-200">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>{userName || "Owner"} • {shopName || "My Business"}</span>
+          <span>{activeUserName} • {activeShopName}</span>
         </div>
       </header>
 
@@ -142,14 +163,14 @@ export default function WelcomePage() {
                   backgroundImage: `linear-gradient(135deg, ${theme.primaryColor || "#16a34a"} 0%, #047857 100%)`,
                 }}
               >
-                {userName || "Partner"}! 🎉
+                {activeUserName}! 🎉
               </span>
             </h1>
 
             <p className="text-sm text-stone-600 max-w-xl mx-auto leading-relaxed">
               {isUrdu
-                ? `آپ کا بزنس پروفائل "${shopName || "دکان"}" کامیابی سے ایکٹیویٹ ہو چکا ہے۔ اب آپ کا تمام ڈیٹا صرف آپ کے اکاؤنٹ کے ساتھ محفوظ رہے گا۔`
-                : `Your business profile "${shopName || "Business"}" is successfully configured and completely isolated to your account. Everything is ready for operation.`}
+                ? `آپ کا بزنس پروفائل "${activeShopName}" کامیابی سے ایکٹیویٹ ہو چکا ہے۔ اب آپ کا تمام ڈیٹا صرف آپ کے اکاؤنٹ کے ساتھ محفوظ رہے گا۔`
+                : `Your business profile "${activeShopName}" is successfully configured and completely isolated to your account. Everything is ready for operation.`}
             </p>
           </div>
 
@@ -160,7 +181,7 @@ export default function WelcomePage() {
                 {isUrdu ? "بزنس کا نام" : "Business Name"}
               </span>
               <span className="text-xs font-extrabold text-stone-900 truncate block mt-0.5">
-                {shopName || "My Business"}
+                {activeShopName}
               </span>
             </div>
             <div>
@@ -168,7 +189,7 @@ export default function WelcomePage() {
                 {isUrdu ? "کاروبار کی نوعیت" : "Category"}
               </span>
               <span className="text-xs font-extrabold text-stone-900 capitalize block mt-0.5">
-                {industryType || "Retail"}
+                {activeIndustry}
               </span>
             </div>
             <div>

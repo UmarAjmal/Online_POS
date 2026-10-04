@@ -152,22 +152,26 @@ const ShopContext = createContext<ShopContextType>(defaultContext);
 export const useShop = () => useContext(ShopContext);
 
 export function ShopProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<ShopContextType>(defaultContext);
-  const [supabase] = useState(() => createClient());
+  const [state, setState] = useState<ShopContextType>(() => {
+    const cached = readCachedUser();
+    if (cached?.shop_id) {
+      return stateFromUser(cached);
+    }
+    return defaultContext;
+  });
 
   useEffect(() => {
-    let done = false;
+    let active = true;
 
-    const finish = (next: ShopContextType) => {
-      if (done) return;
-      done = true;
-      setState(next);
-    };
+    const syncSession = async () => {
+      const cached = readCachedUser();
 
-    const cached = readCachedUser();
-
-    void (async () => {
       if (cached?.id) {
+        // If state is not yet hydrated with cached user, hydrate immediately
+        if (cached.shop_id) {
+          if (active) setState(stateFromUser(cached));
+        }
+
         try {
           const res = await fetch("/api/sqlite", {
             method: "POST",
@@ -175,41 +179,39 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
             body: JSON.stringify({ action: "refresh_session", userId: cached.id }),
           });
           const json = await res.json();
-          if (res.ok && json.data?.user?.shop_id) {
+          if (active && res.ok && json.data?.user?.shop_id) {
             localStorage.setItem(SESSION_KEY, JSON.stringify(json.data.user));
-            finish(stateFromUser(json.data.user));
+            setState(stateFromUser(json.data.user));
             return;
           }
         } catch (err) {
           console.error("Session refresh failed:", err);
         }
 
-        if (cached.shop_id) {
-          finish(stateFromUser(cached));
+        if (active && cached.shop_id) {
+          setState(stateFromUser(cached));
           return;
         }
       }
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.shop_id) {
-          finish(stateFromUser(user));
-          return;
+      // If no cached user or session is invalid, mark as ready and redirect if on private route
+      if (active) {
+        setState({ ...defaultContext, loading: false, ready: true });
+        if (typeof window !== "undefined") {
+          const path = window.location.pathname;
+          if (path.startsWith("/dashboard") || path.startsWith("/welcome")) {
+            window.location.href = "/login";
+          }
         }
-      } catch (err) {
-        console.error("Error loading shop data:", err);
       }
+    };
 
-      finish({ ...defaultContext, loading: false, ready: true });
-      if (window.location.pathname.startsWith("/dashboard")) {
-        window.location.href = "/login";
-      }
-    })();
+    syncSession();
 
     return () => {
-      done = true;
+      active = false;
     };
-  }, [supabase]);
+  }, []);
 
   return <ShopContext.Provider value={state}>{children}</ShopContext.Provider>;
 }
