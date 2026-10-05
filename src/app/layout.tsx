@@ -19,6 +19,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Falcon Swift Business POS",
   description: "Modern cloud and offline Point of Sale & Inventory Management System for Retail, Supermarts, Wholesale and Pharmacies.",
+  icons: {
+    icon: [
+      { url: "/falcon.png", type: "image/png" },
+      { url: "/falcon.png", sizes: "32x32", type: "image/png" },
+      { url: "/falcon.png", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: "/falcon.png",
+    apple: "/falcon.png",
+  },
 };
 
 export default function RootLayout({
@@ -32,6 +41,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <link rel="icon" href="/falcon.png" type="image/png" sizes="any" />
+        <link rel="apple-touch-icon" href="/falcon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
