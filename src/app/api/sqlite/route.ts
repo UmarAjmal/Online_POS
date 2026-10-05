@@ -420,20 +420,21 @@ export async function POST(req: NextRequest) {
       const secSettings: any = await dbClient.get("SELECT * FROM security_settings LIMIT 1");
       const maxFailed = secSettings?.max_failed_attempts || 5;
       const lockMins = secSettings?.lockout_duration_mins || 15;
+      const cutoffTime = new Date(Date.now() - lockMins * 60 * 1000).toISOString();
 
-      // Check recent failed attempts
+      // Check recent failed attempts (compatible with both PostgreSQL and SQLite)
       const recentFails: any = await dbClient.get(
         `SELECT COUNT(*) as count FROM login_audit_logs 
-         WHERE email = ? AND status = 'FAILED' AND created_at >= datetime('now', '-' || ? || ' minutes')`,
-        [String(email).trim(), lockMins]
+         WHERE email = ? AND status = 'FAILED' AND created_at >= ?`,
+        [String(email).trim(), cutoffTime]
       );
 
       if (recentFails && recentFails.count >= maxFailed) {
         const logId = "log-" + Date.now();
         await dbClient.run(
-          `INSERT INTO login_audit_logs (id, shop_id, email, status, failure_reason, ip_address, user_agent)
-           VALUES (?, ?, ?, 'LOCKED', 'Exceeded maximum allowed failed attempts', ?, ?)`,
-          [logId, "ar-group-shop-001", String(email).trim(), ip, userAgent]
+          `INSERT INTO login_audit_logs (id, shop_id, email, status, failure_reason, ip_address, user_agent, created_at)
+           VALUES (?, ?, ?, 'LOCKED', 'Exceeded maximum allowed failed attempts', ?, ?, ?)`,
+          [logId, "ar-group-shop-001", String(email).trim(), ip, userAgent, new Date().toISOString()]
         );
         return NextResponse.json({
           error: `Account temporarily locked due to ${maxFailed} failed attempts. Please try again in ${lockMins} minutes.`
@@ -451,9 +452,9 @@ export async function POST(req: NextRequest) {
       if (!user) {
         const logId = "log-" + Date.now();
         await dbClient.run(
-          `INSERT INTO login_audit_logs (id, shop_id, email, status, failure_reason, ip_address, user_agent)
-           VALUES (?, ?, ?, 'FAILED', 'Invalid username or password', ?, ?)`,
-          [logId, "ar-group-shop-001", String(email).trim(), ip, userAgent]
+          `INSERT INTO login_audit_logs (id, shop_id, email, status, failure_reason, ip_address, user_agent, created_at)
+           VALUES (?, ?, ?, 'FAILED', 'Invalid username or password', ?, ?, ?)`,
+          [logId, "ar-group-shop-001", String(email).trim(), ip, userAgent, new Date().toISOString()]
         );
         return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
       }
@@ -461,18 +462,18 @@ export async function POST(req: NextRequest) {
       // Record successful login in audit logs
       const logId = "log-" + Date.now();
       await dbClient.run(
-        `INSERT INTO login_audit_logs (id, shop_id, user_id, email, status, ip_address, user_agent)
-         VALUES (?, ?, ?, ?, 'SUCCESS', ?, ?)`,
-        [logId, user.shop_id, user.id, user.email, ip, userAgent]
+        `INSERT INTO login_audit_logs (id, shop_id, user_id, email, status, ip_address, user_agent, created_at)
+         VALUES (?, ?, ?, ?, 'SUCCESS', ?, ?, ?)`,
+        [logId, user.shop_id, user.id, user.email, ip, userAgent, new Date().toISOString()]
       );
 
       // Register session in active_sessions
       const sessToken = "db_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
       const sessId = "sess-" + Date.now();
       await dbClient.run(
-        `INSERT INTO active_sessions (id, shop_id, user_id, user_name, user_role, email, token, ip_address, user_agent, device_info, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
-        [sessId, user.shop_id, user.id, user.name, user.role, user.email, sessToken, ip, userAgent, "Desktop / Web Browser"]
+        `INSERT INTO active_sessions (id, shop_id, user_id, user_name, user_role, email, token, ip_address, user_agent, device_info, status, created_at, last_active_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+        [sessId, user.shop_id, user.id, user.name, user.role, user.email, sessToken, ip, userAgent, "Desktop / Web Browser", new Date().toISOString(), new Date().toISOString()]
       );
 
       const permissions =
