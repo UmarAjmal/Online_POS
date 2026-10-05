@@ -70,6 +70,7 @@ echo   URL: http://localhost:3000
 echo   Press Ctrl+C anytime to stop the server.
 echo ================================================================
 echo.
+if exist .next\dev rd /s /q .next\dev 2>nul
 call npm run dev
 echo.
 pause
@@ -84,6 +85,7 @@ echo   Press Ctrl+C anytime to stop the server.
 echo ================================================================
 echo.
 start "" http://localhost:3000
+if exist .next\dev rd /s /q .next\dev 2>nul
 call npm run dev
 echo.
 pause
@@ -101,6 +103,7 @@ echo [INFO] This system uses SQLite offline mode (no separate build needed).
 echo [INFO] Starting optimized development server...
 echo.
 start "" http://localhost:3000
+if exist .next\dev rd /s /q .next\dev 2>nul
 call npm run dev
 echo.
 pause
@@ -116,6 +119,7 @@ echo ================================================================
 echo.
 echo [INFO] Starting server with SQLite offline support...
 echo.
+if exist .next\dev rd /s /q .next\dev 2>nul
 call npm run dev
 echo.
 pause
