@@ -392,6 +392,8 @@ export const sqliteClient = {
 
     async signOut() {
       if (typeof window !== "undefined") {
+        const { clearPosBrowserCache } = await import("@/lib/posClientStorage");
+        clearPosBrowserCache();
         localStorage.removeItem(SESSION_KEY);
         localStorage.removeItem(TOKEN_KEY);
       }

@@ -69,6 +69,12 @@ const fullUnlockedPermissions = {
   },
 };
 
+function dbFlag(value: unknown, fallback = false): boolean {
+  if (value === true || value === 1 || value === "1") return true;
+  if (value === false || value === 0 || value === "0") return false;
+  return fallback;
+}
+
 function readCachedUser(): Record<string, any> | null {
   if (typeof window === "undefined") return null;
   const cached = localStorage.getItem(SESSION_KEY);
@@ -92,11 +98,11 @@ function stateFromUser(user: Record<string, any>): ShopContextType {
     permissions: fullUnlockedPermissions,
     loading: false,
     ready: true,
-    allowNegativeStock: true,
-    hasEmi: true,
-    hasPayroll: true,
-    hasTax: true,
-    hasAssetsRec: true,
+    allowNegativeStock: dbFlag(user.allow_negative_stock, false),
+    hasEmi: dbFlag(user.has_emi, false),
+    hasPayroll: dbFlag(user.has_payroll, true),
+    hasTax: dbFlag(user.has_tax, true),
+    hasAssetsRec: dbFlag(user.has_assets_rec, true),
     subscriptionTier: user.subscription_tier || "enterprise",
     subscriptionExpiresAt: null,
     allowAccounts: true,
@@ -125,8 +131,8 @@ const defaultContext: ShopContextType = {
   permissions: null,
   loading: true,
   ready: false,
-  allowNegativeStock: true,
-  hasEmi: true,
+  allowNegativeStock: false,
+  hasEmi: false,
   hasPayroll: true,
   hasTax: true,
   hasAssetsRec: true,

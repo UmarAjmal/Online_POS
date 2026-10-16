@@ -94,6 +94,25 @@ function migrateExistingShopToPharmacy() {
       // ignore malformed permissions JSON
     }
   }
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS system_migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  const emiMigration = db.prepare(`SELECT id FROM system_migrations WHERE id = ?`).get("disable_emi_by_default");
+  if (!emiMigration) {
+    db.prepare(`UPDATE shops SET has_emi = 0`).run();
+    db.prepare(`INSERT INTO system_migrations (id) VALUES (?)`).run("disable_emi_by_default");
+  }
+
+  const stockCapMigration = db.prepare(`SELECT id FROM system_migrations WHERE id = ?`).get("retail_stock_cap_default");
+  if (!stockCapMigration) {
+    db.prepare(`UPDATE shops SET allow_negative_stock = 0`).run();
+    db.prepare(`INSERT INTO system_migrations (id) VALUES (?)`).run("retail_stock_cap_default");
+  }
 }
 
 function seedArGroupData() {
@@ -102,7 +121,7 @@ function seedArGroupData() {
 
   db.prepare(`
     INSERT INTO shops (id, name, industry_type, subscription_tier, allow_negative_stock, has_emi, has_payroll, has_tax, has_assets_rec)
-    VALUES (?, ?, 'pharmacy', 'enterprise', 1, 1, 1, 1, 1)
+    VALUES (?, ?, 'pharmacy', 'enterprise', 0, 0, 1, 1, 1)
   `).run(SHOP_ID, "Al Madina Enterprise (Falcon Swift PVT. LTD.)");
 
   db.prepare(`

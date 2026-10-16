@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet, Plus, ArrowRightLeft, Landmark, Coins, RefreshCw, Loader2,
@@ -12,7 +12,36 @@ import { useLanguage } from "@/context/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { SubscriptionBlocker } from "@/components/dashboard/SubscriptionBlocker";
-import { calculateTrialBalance } from "@/lib/trialBalance";
+import {
+  calculateTrialBalance,
+  formatTrialBalanceCells,
+  splitTrialBalanceAmount,
+} from "@/lib/trialBalance";
+
+function TbAmountCells({
+  amount,
+  naturalSide,
+  className = "py-3 px-3 text-right font-semibold text-slate-750",
+}: {
+  amount: number;
+  naturalSide: "debit" | "credit";
+  className?: string;
+}) {
+  const split = splitTrialBalanceAmount(amount, naturalSide);
+  const { debitLabel, creditLabel } = formatTrialBalanceCells(split.debit, split.credit);
+  return (
+    <>
+      <td className={className}>{debitLabel}</td>
+      <td className={className}>{creditLabel}</td>
+    </>
+  );
+}
+
+function trialBalanceRowCells(amount: number, naturalSide: "debit" | "credit"): [string, string] {
+  const split = splitTrialBalanceAmount(amount, naturalSide);
+  const { debitLabel, creditLabel } = formatTrialBalanceCells(split.debit, split.credit);
+  return [debitLabel, creditLabel];
+}
 
 interface CashAccount {
   id: string;
@@ -418,43 +447,42 @@ export default function AccountsPage() {
       const rows: any[] = [];
 
       // 1. Assets
-      accounts.forEach(a => {
-        rows.push([
-          "1100",
-          `Cash/Bank - ${a.name}`,
-          "Asset",
-          `Rs ${Number(a.current_balance).toLocaleString()}`,
-          "-"
-        ]);
+      let pdfDebitTotal = 0;
+      let pdfCreditTotal = 0;
+      const pushTbRow = (
+        code: string,
+        name: string,
+        classification: string,
+        amount: number,
+        side: "debit" | "credit"
+      ) => {
+        const [debitLabel, creditLabel] = trialBalanceRowCells(amount, side);
+        const split = splitTrialBalanceAmount(amount, side);
+        pdfDebitTotal += split.debit;
+        pdfCreditTotal += split.credit;
+        rows.push([code, name, classification, debitLabel, creditLabel]);
+      };
+
+      accounts.forEach((a) => {
+        pushTbRow("1100", `Cash/Bank - ${a.name}`, "Asset", Number(a.current_balance), "debit");
       });
-      rows.push(["1200", "Accounts Receivable (Khata Customers)", "Asset", `Rs ${totalReceivable.toLocaleString()}`, "-"]);
-      rows.push(["1300", "Stock / Inventory Asset", "Asset", `Rs ${inventoryValue.toLocaleString()}`, "-"]);
+      pushTbRow("1200", "Accounts Receivable (Khata Customers)", "Asset", totalReceivable, "debit");
+      pushTbRow("1300", "Stock / Inventory Asset", "Asset", inventoryValue, "debit");
 
-      // 2. Liabilities
-      rows.push(["2100", "Accounts Payable (Khata Suppliers)", "Liability", "-", `Rs ${totalPayable.toLocaleString()}`]);
-
-      // 3. Equity
-      rows.push(["3100", "Owner's Capital Account (Equity)", "Equity", "-", `Rs ${tb.ownersEquity.toLocaleString()}`]);
-
-      // 4. Revenue
-      rows.push(["4100", "Sales Revenue", "Revenue", "-", `Rs ${totalSales.toLocaleString()}`]);
-
-      // 5. Expenses (purchases are in Stock Asset — not counted again)
-      rows.push(["5200", "Operating Expenses", "Expense", `Rs ${totalExpenses.toLocaleString()}`, "-"]);
+      pushTbRow("2100", "Accounts Payable (Khata Suppliers)", "Liability", totalPayable, "credit");
+      pushTbRow("3100", "Owner's Capital Account (Equity)", "Equity", tb.ownersEquity, "credit");
+      pushTbRow("4100", "Sales Revenue", "Revenue", totalSales, "credit");
+      pushTbRow("5200", "Operating Expenses", "Expense", totalExpenses, "debit");
       if (totalPurchases > 0) {
         rows.push(["—", `Purchases → Stock (reference only: Rs ${totalPurchases.toLocaleString()})`, "Memo", "-", "-"]);
       }
 
-      const sumDebits = tb.sumDebits;
-      const sumCredits = tb.sumCredits;
-
-      // Append Total Row
       rows.push([
         "",
         "TOTAL BALANCE",
         "",
-        `Rs ${sumDebits.toLocaleString()}`,
-        `Rs ${sumCredits.toLocaleString()}`
+        `Rs ${pdfDebitTotal.toLocaleString()}`,
+        `Rs ${pdfCreditTotal.toLocaleString()}`
       ]);
 
       autoTable(doc, {
@@ -614,6 +642,35 @@ export default function AccountsPage() {
     sumCredits: sumCreditsVal,
     isBalanced: trialBalanceIsBalanced,
   } = trialBalance;
+
+  const displayTbTotals = useMemo(() => {
+    let debit = 0;
+    let credit = 0;
+    const add = (amt: number, side: "debit" | "credit") => {
+      const s = splitTrialBalanceAmount(amt, side);
+      debit += s.debit;
+      credit += s.credit;
+    };
+    accounts.forEach((a) => add(Number(a.current_balance), "debit"));
+    add(totalReceivable, "debit");
+    add(inventoryValue, "debit");
+    if (hasAssetsRec) add(totalFixedAssetsVal, "debit");
+    add(totalPayable, "credit");
+    add(ownersEquityVal, "credit");
+    add(totalSales, "credit");
+    add(totalExpenses, "debit");
+    return { debit, credit };
+  }, [
+    accounts,
+    totalReceivable,
+    inventoryValue,
+    totalFixedAssetsVal,
+    totalPayable,
+    ownersEquityVal,
+    totalSales,
+    totalExpenses,
+    hasAssetsRec,
+  ]);
 
   if (!allowAccounts) {
     return <SubscriptionBlocker featureName="Chart of Accounts & Ledger" requiredPlan="Starter" />;
@@ -1045,31 +1102,27 @@ export default function AccountsPage() {
                         <td className="py-3 px-3 font-mono font-semibold text-slate-400">1100</td>
                         <td className="py-3 px-3 font-bold text-slate-850">Cash/Bank - {a.name}</td>
                         <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase leading-none">{isUrdu ? "اثاثہ" : "Asset"}</span></td>
-                        <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {Number(a.current_balance).toLocaleString()}</td>
-                        <td className="py-3 px-3 text-right text-slate-400">-</td>
+                        <TbAmountCells amount={Number(a.current_balance)} naturalSide="debit" />
                       </tr>
                     ))}
                     <tr className="hover:bg-slate-50/50">
                       <td className="py-3 px-3 font-mono font-semibold text-slate-400">1200</td>
                       <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "کسٹمر کھاتہ بقایا (A/R)" : "Accounts Receivable (Khata Customers)"}</td>
                       <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase leading-none">{isUrdu ? "اثاثہ" : "Asset"}</span></td>
-                      <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {totalReceivable.toLocaleString()}</td>
-                      <td className="py-3 px-3 text-right text-slate-400">-</td>
+                      <TbAmountCells amount={totalReceivable} naturalSide="debit" />
                     </tr>
                     <tr className="hover:bg-slate-50/50">
                       <td className="py-3 px-3 font-mono font-semibold text-slate-400">1300</td>
                       <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "اسٹاک / انوینٹری اثاثہ" : "Stock / Inventory Asset"}</td>
                       <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase leading-none">{isUrdu ? "اثاثہ" : "Asset"}</span></td>
-                      <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {inventoryValue.toLocaleString()}</td>
-                      <td className="py-3 px-3 text-right text-slate-400">-</td>
+                      <TbAmountCells amount={inventoryValue} naturalSide="debit" />
                     </tr>
                     {hasAssetsRec && (
                       <tr className="hover:bg-slate-50/50">
                         <td className="py-3 px-3 font-mono font-semibold text-slate-400">1400</td>
                         <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "فکسڈ اثاثہ جات (مشینری، پراپرٹی)" : "Fixed Assets (Machinery, Property)"}</td>
                         <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase leading-none">{isUrdu ? "اثاثہ" : "Asset"}</span></td>
-                        <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {totalFixedAssetsVal.toLocaleString()}</td>
-                        <td className="py-3 px-3 text-right text-slate-400">-</td>
+                        <TbAmountCells amount={totalFixedAssetsVal} naturalSide="debit" />
                       </tr>
                     )}
 
@@ -1078,8 +1131,7 @@ export default function AccountsPage() {
                       <td className="py-3 px-3 font-mono font-semibold text-slate-400">2100</td>
                       <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "سپلائر واجب الادا (A/P)" : "Accounts Payable (Khata Suppliers)"}</td>
                       <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-100 uppercase leading-none">{isUrdu ? "واجبات" : "Liability"}</span></td>
-                      <td className="py-3 px-3 text-right text-slate-400">-</td>
-                      <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {totalPayable.toLocaleString()}</td>
+                      <TbAmountCells amount={totalPayable} naturalSide="credit" />
                     </tr>
 
                     {/* 3. Equity (Credits) */}
@@ -1087,10 +1139,7 @@ export default function AccountsPage() {
                       <td className="py-3 px-3 font-mono font-semibold text-slate-400">3100</td>
                       <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "مالکانہ سرمایہ اکاؤنٹ (Equity)" : "Owner's Capital Account (Equity)"}</td>
                       <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase leading-none">{isUrdu ? "سرمایہ" : "Equity"}</span></td>
-                      <td className="py-3 px-3 text-right text-slate-400">-</td>
-                      <td className="py-3 px-3 text-right font-semibold text-slate-750">
-                        Rs {ownersEquityVal.toLocaleString()}
-                      </td>
+                      <TbAmountCells amount={ownersEquityVal} naturalSide="credit" />
                     </tr>
 
                     {/* 4. Revenue (Credits) */}
@@ -1098,8 +1147,7 @@ export default function AccountsPage() {
                       <td className="py-3 px-3 font-mono font-semibold text-slate-400">4100</td>
                       <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "سیلز آمدنی" : "Sales Revenue"}</td>
                       <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase leading-none">{isUrdu ? "آمدنی" : "Revenue"}</span></td>
-                      <td className="py-3 px-3 text-right text-slate-400">-</td>
-                      <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {totalSales.toLocaleString()}</td>
+                      <TbAmountCells amount={totalSales} naturalSide="credit" />
                     </tr>
 
                     {/* 5. Expenses (Debits) — purchases are in Stock Asset, not here */}
@@ -1116,8 +1164,7 @@ export default function AccountsPage() {
                       <td className="py-3 px-3 font-mono font-semibold text-slate-400">5200</td>
                       <td className="py-3 px-3 font-bold text-slate-850">{isUrdu ? "دوکان کے آپریشنل اخراجات" : "Operating Expenses"}</td>
                       <td className="py-3 px-3"><span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-violet-50 text-violet-600 border border-violet-100 uppercase leading-none">{isUrdu ? "خرچہ" : "Expense"}</span></td>
-                      <td className="py-3 px-3 text-right font-semibold text-slate-750">Rs {totalExpenses.toLocaleString()}</td>
-                      <td className="py-3 px-3 text-right text-slate-400">-</td>
+                      <TbAmountCells amount={totalExpenses} naturalSide="debit" />
                     </tr>
 
                     {/* Totals balancing row */}
@@ -1126,10 +1173,10 @@ export default function AccountsPage() {
                       <td className="py-3.5 px-3 uppercase tracking-wider">{isUrdu ? "مجموعی متوازن میزان (Total Balance)" : "TOTAL BALANCE"}</td>
                       <td className="py-3.5 px-3"></td>
                       <td className="py-3.5 px-3 text-right text-blue-650 font-black">
-                        Rs {sumDebitsVal.toLocaleString()}
+                        Rs {displayTbTotals.debit.toLocaleString()}
                       </td>
                       <td className="py-3.5 px-3 text-right text-emerald-650 font-black">
-                        Rs {sumCreditsVal.toLocaleString()}
+                        Rs {displayTbTotals.credit.toLocaleString()}
                       </td>
                     </tr>
                   </tbody>

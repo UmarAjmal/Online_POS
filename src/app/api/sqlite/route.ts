@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
           footer_note, currency, subscription_tier,
           allow_negative_stock, has_emi, has_payroll, has_tax, has_assets_rec,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'enterprise', 1, 1, 1, 1, 1, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'enterprise', 0, 0, 1, 1, 1, ?, ?)`,
         [
           shopId,
           cleanBusiness,
@@ -401,6 +401,11 @@ export async function POST(req: NextRequest) {
             shop_name: cleanBusiness,
             industry_type: industryType,
             subscription_tier: "enterprise",
+            has_emi: false,
+            has_payroll: true,
+            has_tax: true,
+            has_assets_rec: true,
+            allow_negative_stock: false,
           },
           shop: {
             id: shopId,
@@ -442,7 +447,8 @@ export async function POST(req: NextRequest) {
       }
 
       const user = await dbClient.get(
-        `SELECT u.*, s.name as shop_name, s.industry_type, s.subscription_tier
+        `SELECT u.*, s.name as shop_name, s.industry_type, s.subscription_tier,
+                s.allow_negative_stock, s.has_emi, s.has_payroll, s.has_tax, s.has_assets_rec
          FROM user_profiles u
          JOIN shops s ON u.shop_id = s.id
          WHERE u.email = ? AND u.password = ?`,
@@ -490,6 +496,11 @@ export async function POST(req: NextRequest) {
             shop_name: user.shop_name,
             industry_type: user.industry_type,
             subscription_tier: user.subscription_tier,
+            allow_negative_stock: user.allow_negative_stock,
+            has_emi: user.has_emi,
+            has_payroll: user.has_payroll,
+            has_tax: user.has_tax,
+            has_assets_rec: user.has_assets_rec,
             permissions,
           },
           session: {
@@ -852,7 +863,8 @@ export async function POST(req: NextRequest) {
       }
 
       const user = await dbClient.get(
-        `SELECT u.*, s.name as shop_name, s.industry_type, s.subscription_tier
+        `SELECT u.*, s.name as shop_name, s.industry_type, s.subscription_tier,
+                s.allow_negative_stock, s.has_emi, s.has_payroll, s.has_tax, s.has_assets_rec
          FROM user_profiles u
          JOIN shops s ON u.shop_id = s.id
          WHERE u.id = ?`,
@@ -877,6 +889,11 @@ export async function POST(req: NextRequest) {
             shop_name: user.shop_name,
             industry_type: user.industry_type,
             subscription_tier: user.subscription_tier,
+            allow_negative_stock: user.allow_negative_stock,
+            has_emi: user.has_emi,
+            has_payroll: user.has_payroll,
+            has_tax: user.has_tax,
+            has_assets_rec: user.has_assets_rec,
             permissions,
           },
         },

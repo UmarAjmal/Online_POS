@@ -71,7 +71,7 @@ async function main() {
 
       await client.query(`
         INSERT INTO shops (id, name, industry_type, currency, subscription_tier, allow_negative_stock, has_emi, has_payroll, has_tax, has_assets_rec)
-        VALUES ($1, $2, 'retail', 'PKR', 'enterprise', 1, 1, 1, 1, 1)
+        VALUES ($1, $2, 'retail', 'PKR', 'enterprise', 0, 0, 1, 1, 1)
         ON CONFLICT (id) DO NOTHING
       `, ["ar-group-shop-001", "Falcon Swift Retail & POS"]);
 

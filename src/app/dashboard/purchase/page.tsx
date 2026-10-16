@@ -13,6 +13,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { notifyPurchaseTransaction, notifyAuditDelete } from "@/lib/notifications";
+import {
+  baseUnitsFromPurchase,
+  getVariantPackFactor,
+  reverseWeightedUnitCost,
+  usesSeparateVariantStockPool,
+} from "@/lib/posStockUnits";
 
 // ── Modular Components ──────────────────────────────────────────────────────
 import { SupplierSelector } from "./_components/SupplierSelector";
@@ -730,79 +736,167 @@ export default function PurchasePage() {
         const effectiveTotalCost = Math.max(0, (item.purchasePrice * item.quantity) - (item.discount || 0));
         const effectiveUnitPrice = effectivePurchasedQty > 0 ? effectiveTotalCost / effectivePurchasedQty : item.purchasePrice;
 
-        const parentProd = products.find(p => p.id === item.productId);
-        if (item.variantId && parentProd) {
-          const v = parentProd.product_variants?.find(v => v.id === item.variantId);
-          if (v) {
-            const isBoxPack = !!v.is_packing && v.pack_size && v.pack_size > 0;
-            const variantPackSize = v.pack_size || 1;
+        const { data: freshProduct, error: freshProductErr } = await supabase
+          .from("products")
+          .select(
+            "id, current_stock, purchase_price_single, sale_price_single, pack_size, purchase_price_pack, sale_price_pack"
+          )
+          .eq("id", item.productId)
+          .single();
+        if (freshProductErr || !freshProduct) {
+          throw freshProductErr || new Error("Product not found for stock update");
+        }
 
-            if (isBoxPack) {
-              const oldProdStock = parentProd.current_stock || 0;
-              const newProdStock = oldProdStock + (effectivePurchasedQty * variantPackSize);
+        const catalogProduct = products.find((p) => p.id === item.productId);
+        let variant = item.variantId
+          ? catalogProduct?.product_variants?.find((v) => v.id === item.variantId)
+          : undefined;
 
-              const pricePerBaseUnit = effectiveUnitPrice / variantPackSize;
-              const oldBasePurchasePrice = parentProd.purchase_price_single || pricePerBaseUnit;
-              const weightedBasePrice = newProdStock > 0
-                ? Math.round(((oldProdStock * oldBasePurchasePrice) + (effectivePurchasedQty * variantPackSize * pricePerBaseUnit)) / newProdStock * 10000) / 10000
-                : pricePerBaseUnit;
+        if (item.variantId && !variant) {
+          const { data: variantRow } = await supabase
+            .from("product_variants")
+            .select("id, stock_quantity, is_packing, pack_size, purchase_price, sale_price")
+            .eq("id", item.variantId)
+            .maybeSingle();
+          if (variantRow) variant = variantRow as typeof variant;
+        }
 
-              await supabase.from("products").update({
-                current_stock: newProdStock,
-                purchase_price_single: weightedBasePrice
-              }).eq("id", parentProd.id);
+        const productForUnits = { ...catalogProduct, ...freshProduct };
+        const baseUnitsToAdd = baseUnitsFromPurchase(
+          productForUnits,
+          variant,
+          item.variantId,
+          item.quantity,
+          item.bonusQty || 0
+        );
 
-              const oldStock = v.stock_quantity || 0;
-              const oldPrice = v.purchase_price || effectiveUnitPrice;
-              const newStock = oldStock + effectivePurchasedQty;
-              const weightedAvgPrice = newStock > 0
-                ? Math.round(((oldStock * oldPrice) + (effectivePurchasedQty * effectiveUnitPrice)) / newStock * 100) / 100
-                : effectiveUnitPrice;
+        const packFactorForLine =
+          item.variantId && variant ? getVariantPackFactor(productForUnits, variant) : null;
+        const costPerBaseUnit =
+          baseUnitsToAdd > 0
+            ? effectiveTotalCost / baseUnitsToAdd
+            : packFactorForLine
+              ? effectiveUnitPrice / packFactorForLine
+              : effectiveUnitPrice;
+        const saleLineRate =
+          item.salePrice !== undefined && item.salePrice !== null && item.salePrice > 0
+            ? item.salePrice
+            : null;
+        const salePerBaseUnit =
+          saleLineRate != null
+            ? packFactorForLine
+              ? saleLineRate / packFactorForLine
+              : saleLineRate
+            : null;
 
-              const updateData: any = {
-                stock_quantity: newStock,
-                purchase_price: weightedAvgPrice,
-              };
-              if (item.salePrice !== undefined && item.salePrice !== null) {
-                updateData.sale_price = item.salePrice;
-              }
-              await supabase.from("product_variants").update(updateData).eq("id", item.variantId);
-            } else {
-              const oldStock = v.stock_quantity || 0;
-              const oldPrice = v.purchase_price || effectiveUnitPrice;
-              const newStock = oldStock + effectivePurchasedQty;
-              const weightedAvgPrice = newStock > 0
-                ? Math.round(((oldStock * oldPrice) + (effectivePurchasedQty * effectiveUnitPrice)) / newStock * 100) / 100
-                : effectiveUnitPrice;
+        if (baseUnitsToAdd > 0) {
+          const oldStock = Number(freshProduct.current_stock) || 0;
+          const oldPurchaseBase = Number(freshProduct.purchase_price_single) || costPerBaseUnit;
+          const newStock = oldStock + baseUnitsToAdd;
+          const weightedBasePurchase =
+            newStock > 0
+              ? Math.round(((oldStock * oldPurchaseBase) + effectiveTotalCost) / newStock * 10000) / 10000
+              : costPerBaseUnit;
 
-              const updateData: any = {
-                stock_quantity: newStock,
-                purchase_price: weightedAvgPrice,
-              };
-              if (item.salePrice !== undefined && item.salePrice !== null) {
-                updateData.sale_price = item.salePrice;
-              }
-              await supabase.from("product_variants").update(updateData).eq("id", item.variantId);
+          let weightedBaseSale: number | null = null;
+          const productUpdate: Record<string, unknown> = {
+            current_stock: newStock,
+            purchase_price_single: weightedBasePurchase,
+          };
+
+          if (salePerBaseUnit != null) {
+            const oldSaleBase = Number(freshProduct.sale_price_single) || salePerBaseUnit;
+            weightedBaseSale =
+              newStock > 0
+                ? Math.round(
+                    ((oldStock * oldSaleBase) + baseUnitsToAdd * salePerBaseUnit) / newStock * 10000
+                  ) / 10000
+                : salePerBaseUnit;
+            productUpdate.sale_price_single = weightedBaseSale;
+          }
+
+          if (packFactorForLine) {
+            productUpdate.purchase_price_pack =
+              Math.round(weightedBasePurchase * packFactorForLine * 100) / 100;
+            if (weightedBaseSale != null) {
+              productUpdate.sale_price_pack =
+                Math.round(weightedBaseSale * packFactorForLine * 100) / 100;
+            } else if (saleLineRate != null) {
+              productUpdate.sale_price_pack = saleLineRate;
             }
           }
-        } else {
-          const p = products.find(p => p.id === item.productId);
-          if (p) {
-            const oldStock = p.current_stock || 0;
-            const oldPrice = p.purchase_price_single || effectiveUnitPrice;
-            const newStock = oldStock + effectivePurchasedQty;
-            const weightedAvgPrice = newStock > 0
-              ? Math.round(((oldStock * oldPrice) + (effectivePurchasedQty * effectiveUnitPrice)) / newStock * 100) / 100
-              : effectiveUnitPrice;
 
-            const updateData: any = {
-              current_stock: newStock,
-              purchase_price_single: weightedAvgPrice,
+          const { error: prodUpErr } = await supabase
+            .from("products")
+            .update(productUpdate)
+            .eq("id", item.productId);
+          if (prodUpErr) throw prodUpErr;
+        }
+
+        if (item.variantId && variant) {
+          const packFactor = getVariantPackFactor(productForUnits, variant);
+          if (packFactor) {
+            const { data: afterProduct } = await supabase
+              .from("products")
+              .select("current_stock")
+              .eq("id", item.productId)
+              .single();
+
+            const syncedPackStock = Math.floor(
+              (Number(afterProduct?.current_stock) || 0) / packFactor
+            );
+
+            const { data: freshVariant } = await supabase
+              .from("product_variants")
+              .select("stock_quantity, purchase_price")
+              .eq("id", item.variantId)
+              .single();
+
+            const oldVarStock = Number(freshVariant?.stock_quantity) || 0;
+            const oldVarPrice = Number(freshVariant?.purchase_price) || effectiveUnitPrice;
+            const newVarStockForAvg = oldVarStock + effectivePurchasedQty;
+            const weightedVarPrice =
+              newVarStockForAvg > 0
+                ? Math.round(
+                    ((oldVarStock * oldVarPrice) + effectivePurchasedQty * effectiveUnitPrice) /
+                      newVarStockForAvg *
+                      100
+                  ) / 100
+                : effectiveUnitPrice;
+
+            const variantUpdate: Record<string, unknown> = {
+              stock_quantity: syncedPackStock,
+              purchase_price: weightedVarPrice,
             };
             if (item.salePrice !== undefined && item.salePrice !== null) {
-              updateData.sale_price_single = item.salePrice;
+              variantUpdate.sale_price = item.salePrice;
             }
-            await supabase.from("products").update(updateData).eq("id", item.productId);
+            await supabase.from("product_variants").update(variantUpdate).eq("id", item.variantId);
+          } else if (usesSeparateVariantStockPool(productForUnits, variant, item.variantId)) {
+            const { data: freshVariant } = await supabase
+              .from("product_variants")
+              .select("stock_quantity, purchase_price")
+              .eq("id", item.variantId)
+              .single();
+
+            const oldStock = Number(freshVariant?.stock_quantity) || 0;
+            const oldPrice = Number(freshVariant?.purchase_price) || effectiveUnitPrice;
+            const newStock = oldStock + effectivePurchasedQty;
+            const weightedAvgPrice =
+              newStock > 0
+                ? Math.round(
+                    ((oldStock * oldPrice) + effectivePurchasedQty * effectiveUnitPrice) / newStock * 100
+                  ) / 100
+                : effectiveUnitPrice;
+
+            const variantUpdate: Record<string, unknown> = {
+              stock_quantity: newStock,
+              purchase_price: weightedAvgPrice,
+            };
+            if (item.salePrice !== undefined && item.salePrice !== null) {
+              variantUpdate.sale_price = item.salePrice;
+            }
+            await supabase.from("product_variants").update(variantUpdate).eq("id", item.variantId);
           }
         }
       }
@@ -860,28 +954,127 @@ export default function PurchasePage() {
 
   // ── Void PO ──
   async function handleVoidPO(poId: string) {
-    if (!confirm("Void this purchase? Stock will be reversed.")) return;
+    if (!confirm("Void this purchase? Stock and purchase cost average will be reversed.")) return;
     setVoidingId(poId);
     try {
       const { data: items } = await supabase.from("purchase_order_items").select("*").eq("purchase_order_id", poId);
-      for (const it of (items || [])) {
-        if (it.variant_id) {
-          const { data: v } = await supabase.from("product_variants").select("stock_quantity, is_packing, pack_size").eq("id", it.variant_id).maybeSingle();
-          if (v) {
-            if (v.is_packing && v.pack_size && v.pack_size > 0) {
-              const { data: p } = await supabase.from("products").select("current_stock").eq("id", it.product_id).maybeSingle();
-              if (p) {
-                await supabase.from("products").update({
-                  current_stock: Math.max(0, p.current_stock - (it.quantity * v.pack_size))
-                }).eq("id", it.product_id);
-              }
-            } else {
-              await supabase.from("product_variants").update({ stock_quantity: Math.max(0, v.stock_quantity - it.quantity) }).eq("id", it.variant_id);
-            }
+      for (const it of items || []) {
+        const lineQty = Number(it.quantity) || 0;
+        const lineBonus = Number(it.bonus_quantity) || 0;
+        const effectivePurchasedQty = lineQty + lineBonus;
+        const unitPrice = Number(it.unit_price ?? it.purchase_price) || 0;
+        const lineDiscount = Number(it.discount_amount) || 0;
+        const effectiveTotalCost = Math.max(0, unitPrice * lineQty - lineDiscount);
+        const effectiveUnitPrice =
+          effectivePurchasedQty > 0 ? effectiveTotalCost / effectivePurchasedQty : unitPrice;
+
+        const { data: freshProduct } = await supabase
+          .from("products")
+          .select(
+            "id, current_stock, pack_size, purchase_price_single, purchase_price_pack"
+          )
+          .eq("id", it.product_id)
+          .maybeSingle();
+        if (!freshProduct) continue;
+
+        const catalogProduct = products.find((p) => p.id === it.product_id);
+        let variant =
+          it.variant_id
+            ? catalogProduct?.product_variants?.find((v) => v.id === it.variant_id)
+            : undefined;
+
+        if (it.variant_id && !variant) {
+          const { data: variantRow } = await supabase
+            .from("product_variants")
+            .select("id, stock_quantity, is_packing, pack_size, purchase_price")
+            .eq("id", it.variant_id)
+            .maybeSingle();
+          if (variantRow) variant = variantRow as typeof variant;
+        }
+
+        const productForUnits = { ...catalogProduct, ...freshProduct };
+        const baseUnitsToRemove = baseUnitsFromPurchase(
+          productForUnits,
+          variant,
+          it.variant_id,
+          lineQty,
+          lineBonus
+        );
+
+        const packFactorForLine =
+          it.variant_id && variant ? getVariantPackFactor(productForUnits, variant) : null;
+
+        const stockBefore = Number(freshProduct.current_stock) || 0;
+        const currentBaseCost = Number(freshProduct.purchase_price_single) || 0;
+        let reversedBaseCost = currentBaseCost;
+
+        if (baseUnitsToRemove > 0) {
+          const nextStock = Math.max(0, stockBefore - baseUnitsToRemove);
+          reversedBaseCost = reverseWeightedUnitCost(
+            stockBefore,
+            currentBaseCost,
+            baseUnitsToRemove,
+            effectiveTotalCost
+          );
+
+          const productUpdate: Record<string, unknown> = {
+            current_stock: nextStock,
+            purchase_price_single: reversedBaseCost,
+          };
+          if (packFactorForLine) {
+            productUpdate.purchase_price_pack =
+              Math.round(reversedBaseCost * packFactorForLine * 100) / 100;
           }
-        } else {
-          const { data: p } = await supabase.from("products").select("current_stock").eq("id", it.product_id).maybeSingle();
-          if (p) await supabase.from("products").update({ current_stock: Math.max(0, p.current_stock - it.quantity) }).eq("id", it.product_id);
+
+          await supabase.from("products").update(productUpdate).eq("id", it.product_id);
+        }
+
+        if (it.variant_id && variant) {
+          const packFactor = getVariantPackFactor(productForUnits, variant);
+          if (packFactor) {
+            const { data: afterProduct } = await supabase
+              .from("products")
+              .select("current_stock")
+              .eq("id", it.product_id)
+              .maybeSingle();
+            const syncedPackStock = Math.floor(
+              (Number(afterProduct?.current_stock) || 0) / packFactor
+            );
+
+            const packCostFromBase =
+              Math.round(reversedBaseCost * packFactor * 100) / 100;
+
+            await supabase
+              .from("product_variants")
+              .update({
+                stock_quantity: Math.max(0, syncedPackStock),
+                purchase_price: packCostFromBase,
+              })
+              .eq("id", it.variant_id);
+          } else if (usesSeparateVariantStockPool(productForUnits, variant, it.variant_id)) {
+            const { data: freshVariant } = await supabase
+              .from("product_variants")
+              .select("stock_quantity, purchase_price")
+              .eq("id", it.variant_id)
+              .maybeSingle();
+            const varStockBefore = Number(freshVariant?.stock_quantity) || 0;
+            const varCostBefore = Number(freshVariant?.purchase_price) || effectiveUnitPrice;
+            const nextVarStock = Math.max(0, varStockBefore - effectivePurchasedQty);
+            const reversedVarCost = reverseWeightedUnitCost(
+              varStockBefore,
+              varCostBefore,
+              effectivePurchasedQty,
+              effectivePurchasedQty * effectiveUnitPrice
+            );
+
+            await supabase
+              .from("product_variants")
+              .update({
+                stock_quantity: nextVarStock,
+                purchase_price: reversedVarCost,
+              })
+              .eq("id", it.variant_id);
+          }
         }
       }
       const { data: po } = await supabase.from("purchase_orders").select("*").eq("id", poId).single();
@@ -900,9 +1093,10 @@ export default function PurchasePage() {
         "Voided by admin/manager"
       );
 
-      toast.success("Purchase voided & stock reversed!");
+      toast.success("Purchase voided — stock & purchase cost reversed");
       setIsDetailOpen(false);
-      fetchHistory();
+      await fetchHistory();
+      await fetchBaseData();
     } catch (err: any) { toast.error("Void failed: " + err.message); }
     finally { setVoidingId(null); }
   }
@@ -1242,6 +1436,14 @@ export default function PurchasePage() {
                       <tbody>
                         {cart.map((item, idx) => {
                           const isItemHighlighted = isCartFocused && selectedCartIdx === idx;
+                          const cartProduct = products.find((p) => p.id === item.productId);
+                          const cartVariant = item.variantId
+                            ? cartProduct?.product_variants?.find((v) => v.id === item.variantId)
+                            : undefined;
+                          const cartPackFactor =
+                            cartVariant && cartProduct
+                              ? getVariantPackFactor(cartProduct, cartVariant)
+                              : null;
                           return (
                             <tr
                               key={`${item.productId}-${item.variantId || "base"}-${idx}`}
@@ -1336,6 +1538,13 @@ export default function PurchasePage() {
                                     className="no-spin w-24 h-7 bg-white border-2 border-violet-200 rounded-lg px-2 text-[11px] font-extrabold focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200 text-slate-800 text-right shadow-sm"
                                     placeholder="0"
                                   />
+                                  {cartPackFactor && cartPackFactor > 1 && item.purchasePrice > 0 && (
+                                    <span className="text-[8px] font-bold text-violet-600/80 tabular-nums">
+                                      {isUrdu
+                                        ? `فی گولی: Rs ${(item.purchasePrice / cartPackFactor).toFixed(2)}`
+                                        : `Per unit: Rs ${(item.purchasePrice / cartPackFactor).toFixed(2)}`}
+                                    </span>
+                                  )}
                                 </div>
                               </td>
 
@@ -1376,6 +1585,13 @@ export default function PurchasePage() {
                                     className="no-spin w-24 h-7 bg-white border-2 border-emerald-250 rounded-lg px-2 text-[11px] font-extrabold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-250 text-slate-800 text-right shadow-sm"
                                     placeholder="0"
                                   />
+                                  {cartPackFactor && cartPackFactor > 1 && (item.salePrice || 0) > 0 && (
+                                    <span className="text-[8px] font-bold text-emerald-600/80 tabular-nums">
+                                      {isUrdu
+                                        ? `فی گولی: Rs ${((item.salePrice || 0) / cartPackFactor).toFixed(2)}`
+                                        : `Per unit: Rs ${((item.salePrice || 0) / cartPackFactor).toFixed(2)}`}
+                                    </span>
+                                  )}
                                 </div>
                               </td>
 

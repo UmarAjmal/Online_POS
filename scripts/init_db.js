@@ -91,7 +91,7 @@ if (existing) {
 
 db.prepare(`
   INSERT INTO shops (id, name, industry_type, subscription_tier, allow_negative_stock, has_emi, has_payroll, has_tax, has_assets_rec)
-  VALUES (?, ?, 'commercial', 'enterprise', 1, 1, 1, 1, 1)
+  VALUES (?, ?, 'commercial', 'enterprise', 0, 0, 1, 1, 1)
 `).run(SHOP_ID, "Al Madina Enterprise (Falcon Swift PVT. LTD.)");
 
 db.prepare(`

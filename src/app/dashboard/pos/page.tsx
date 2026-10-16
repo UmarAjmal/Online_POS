@@ -16,6 +16,17 @@ import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/context/LanguageContext";
 import { ReceiptTemplate, DEFAULT_RECEIPT_SETTINGS } from "@/components/ReceiptTemplate";
 import { notifySaleTransaction } from "@/lib/notifications";
+import { clearPosBrowserCache } from "@/lib/posClientStorage";
+import {
+  PRODUCT_PACK_VARIANT_PREFIX,
+  baseUnitsToDecrement,
+  getBaseStockUnits,
+  getProductPackFactor,
+  getVariantPackFactor,
+  isProductPackVariantId,
+  shouldDecrementVariantStock,
+  stockInSellUnit,
+} from "@/lib/posStockUnits";
 
 const PAGE_SIZE = 20;
 
@@ -27,6 +38,9 @@ type DBProduct = {
   sale_price_single: number;
   purchase_price_single: number;
   current_stock: number;
+  pack_size?: number | null;
+  sale_price_pack?: number | null;
+  purchase_price_pack?: number | null;
   category_id?: string | null;
   measurement_type?: "standard" | "dimension" | "length" | null;
   has_imei?: boolean | null;
@@ -108,7 +122,8 @@ function CartQtyInput({
       setLocalVal(valStr);
       const parsed = allowDecimal ? parseFloat(valStr) : parseInt(valStr, 10);
       if (!isNaN(parsed) && parsed > 0) {
-        onChange(Math.min(max, parsed));
+        const capped = max > 0 && max < Number.MAX_SAFE_INTEGER ? Math.min(max, parsed) : parsed;
+        onChange(capped);
       }
     }
   };
@@ -119,7 +134,7 @@ function CartQtyInput({
       setLocalVal("1");
       onChange(1);
     } else {
-      const clamped = Math.min(max, parsed);
+      const clamped = max > 0 && max < Number.MAX_SAFE_INTEGER ? Math.min(max, parsed) : parsed;
       setLocalVal(clamped.toString());
       onChange(clamped);
     }
@@ -213,23 +228,13 @@ export default function POSPage() {
   const [isHeldModalOpen, setIsHeldModalOpen] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && shopId) {
-      const saved = localStorage.getItem(`held_carts_${shopId}`);
-      if (saved) {
-        try {
-          setHeldCarts(JSON.parse(saved));
-        } catch (e) {
-          console.error(e);
-        }
-      }
+    if (shopId) {
+      clearPosBrowserCache(shopId);
     }
   }, [shopId]);
 
   const saveHeldCarts = (newCarts: any[]) => {
     setHeldCarts(newCarts);
-    if (typeof window !== "undefined" && shopId) {
-      localStorage.setItem(`held_carts_${shopId}`, JSON.stringify(newCarts));
-    }
   };
 
   // Add Customer Modal State
@@ -247,51 +252,21 @@ export default function POSPage() {
   // Keyboard Shortcuts modal help state
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
 
-  // Custom price editing mode state — persisted to localStorage
   const [allowPriceEdit, setAllowPriceEdit] = useState(false);
 
-  // Load allowPriceEdit from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined" && shopId) {
-      const saved = localStorage.getItem(`pos_price_edit_${shopId}`);
-      if (saved === "true") setAllowPriceEdit(true);
-    }
-  }, [shopId]);
-
-  // Save allowPriceEdit to localStorage whenever it changes
   const togglePriceEdit = () => {
-    setAllowPriceEdit(prev => {
-      const next = !prev;
-      if (typeof window !== "undefined" && shopId) {
-        localStorage.setItem(`pos_price_edit_${shopId}`, String(next));
-      }
-      return next;
-    });
+    setAllowPriceEdit((prev) => !prev);
   };
 
   // Edit previous bill mode state
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
 
-  // Layout View State: grid vs search (persisted to localStorage)
   const [layoutView, setLayoutView] = useState<"grid" | "search">("grid");
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [selectedSearchProductIndex, setSelectedSearchProductIndex] = useState(0);
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && shopId) {
-      const saved = localStorage.getItem(`pos_layout_view_${shopId}`);
-      if (saved === "grid" || saved === "search") {
-        setLayoutView(saved);
-      }
-    }
-  }, [shopId]);
-
   const toggleLayoutView = () => {
-    const nextView = layoutView === "grid" ? "search" : "grid";
-    setLayoutView(nextView);
-    if (typeof window !== "undefined" && shopId) {
-      localStorage.setItem(`pos_layout_view_${shopId}`, nextView);
-    }
+    setLayoutView((prev) => (prev === "grid" ? "search" : "grid"));
   };
 
   // Pagination state
@@ -368,7 +343,7 @@ export default function POSPage() {
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select(`
-          id, name, code, unit, sale_price_single, purchase_price_single, current_stock, category_id, measurement_type, has_imei, warranty, formulations(name),
+          id, name, code, unit, sale_price_single, purchase_price_single, current_stock, pack_size, sale_price_pack, purchase_price_pack, category_id, measurement_type, has_imei, warranty, formulations(name),
           product_barcodes ( barcode ),
           product_variants ( 
             id, packing_name, sale_price, purchase_price, stock_quantity, is_packing, pack_size,
@@ -623,27 +598,18 @@ export default function POSPage() {
         const product = products.find(p => p.id === it.product_id);
         if (!product) continue;
 
-        let purchasePrice = product.purchase_price_single || 0;
-        let packingName: string | undefined = undefined;
-        let stock = product.current_stock || 0;
-        if (it.variant_id) {
-          const variant = product.product_variants?.find(v => v.id === it.variant_id);
-          if (variant) {
-            packingName = variant.packing_name;
-            stock = variant.stock_quantity;
-            purchasePrice = variant.purchase_price || 0;
-          }
-        }
+        const variantId = it.variant_id || undefined;
+        const metrics = resolveCartUnitMetrics(product, variantId || "base");
 
         cartItems.push({
           productId: it.product_id,
-          variantId: it.variant_id || undefined,
+          variantId,
           name: product.name,
-          packingName,
+          packingName: metrics.packingName,
           price: Number(it.unit_price),
-          purchasePrice: Number(purchasePrice),
+          purchasePrice: Number(metrics.purchasePrice),
           quantity: Number(it.quantity),
-          stock: Number(stock)
+          stock: Number(metrics.stock),
         });
       }
 
@@ -695,27 +661,18 @@ export default function POSPage() {
         const product = products.find(p => p.id === it.product_id);
         if (!product) continue;
 
-        let purchasePrice = product.purchase_price_single || 0;
-        let packingName: string | undefined = undefined;
-        let stock = product.current_stock || 0;
-        if (it.variant_id) {
-          const variant = product.product_variants?.find(v => v.id === it.variant_id);
-          if (variant) {
-            packingName = variant.packing_name;
-            stock = variant.stock_quantity;
-            purchasePrice = variant.purchase_price || 0;
-          }
-        }
+        const variantId = it.variant_id || undefined;
+        const metrics = resolveCartUnitMetrics(product, variantId || "base");
 
         cartItems.push({
           productId: it.product_id,
-          variantId: it.variant_id || undefined,
+          variantId,
           name: product.name,
-          packingName: it.packing_name || packingName,
+          packingName: it.packing_name || metrics.packingName,
           price: Number(it.unit_price),
-          purchasePrice: Number(purchasePrice),
+          purchasePrice: Number(metrics.purchasePrice),
           quantity: Number(it.quantity),
-          stock: Number(stock)
+          stock: Number(metrics.stock),
         });
       }
 
@@ -815,9 +772,8 @@ export default function POSPage() {
     if (product.product_variants && product.product_variants.length > 0) {
       for (const v of product.product_variants) {
         if (!options.some(o => o.name.toLowerCase() === v.packing_name.toLowerCase())) {
-          const isPacking = !!v.is_packing;
-          const factor = isPacking && v.pack_size ? v.pack_size : 1;
-          const stockVal = isPacking && v.pack_size ? Math.floor(product.current_stock / v.pack_size) : v.stock_quantity;
+          const factor = getVariantPackFactor(product, v) ?? 1;
+          const stockVal = stockInSellUnit(product, v);
 
           options.push({
             id: v.id,
@@ -833,8 +789,121 @@ export default function POSPage() {
       }
     }
 
+    const productPack = getProductPackFactor(product);
+    if (productPack && (product.sale_price_pack || product.purchase_price_pack)) {
+      const packLabel = `Box (${productPack} ${product.unit || "pcs"})`;
+      const hasBoxVariant = options.some(
+        (o) => o.conversionFactor === productPack || o.name.toLowerCase().includes("box")
+      );
+      if (!hasBoxVariant) {
+        options.push({
+          id: `${PRODUCT_PACK_VARIANT_PREFIX}${product.id}`,
+          name: packLabel,
+          price: Number(product.sale_price_pack) || Number(product.sale_price_single) * productPack,
+          purchasePrice: Number(product.purchase_price_pack) || Number(product.purchase_price_single) * productPack,
+          stock: Math.floor(getBaseStockUnits(product) / productPack),
+          isAutoSubunit: false,
+          conversionFactor: productPack,
+          type: "multiplier",
+        });
+      }
+    }
+
     return options;
   };
+
+  /** Stock/price for the unit the cashier is selling (base = product.current_stock in base unit). */
+  const resolveCartUnitMetrics = (
+    product: DBProduct,
+    unitKey: string
+  ): {
+    price: number;
+    purchasePrice: number;
+    stock: number;
+    packingName?: string;
+    variantId?: string;
+    isAutoSubunit?: boolean;
+    conversionFactor?: number;
+    unitType?: "multiplier" | "divisor";
+  } => {
+    if (!unitKey || unitKey === "base") {
+      return {
+        price: product.sale_price_single,
+        purchasePrice: product.purchase_price_single || 0,
+        stock: getBaseStockUnits(product),
+      };
+    }
+
+    if (isProductPackVariantId(unitKey)) {
+      const factor = getProductPackFactor(product) || 1;
+      return {
+        price: Number(product.sale_price_pack) || product.sale_price_single * factor,
+        purchasePrice: Number(product.purchase_price_pack) || (product.purchase_price_single || 0) * factor,
+        stock: Math.floor(getBaseStockUnits(product) / factor),
+        packingName: `Box (${factor} ${product.unit || "pcs"})`,
+        variantId: unitKey,
+        conversionFactor: factor,
+        unitType: "multiplier",
+      };
+    }
+
+    const fromOptions = getProductUnitOptions(product).find((o) => o.id === unitKey);
+    if (fromOptions) {
+      return {
+        price: fromOptions.price,
+        purchasePrice: fromOptions.purchasePrice,
+        stock: fromOptions.stock,
+        packingName: fromOptions.name,
+        variantId: fromOptions.id,
+        isAutoSubunit: fromOptions.isAutoSubunit,
+        conversionFactor: fromOptions.conversionFactor,
+        unitType: fromOptions.type,
+      };
+    }
+
+    const variant = product.product_variants?.find((v) => v.id === unitKey);
+    if (variant) {
+      const factor = getVariantPackFactor(product, variant) ?? 1;
+      return {
+        price: variant.sale_price,
+        purchasePrice: variant.purchase_price || 0,
+        stock: stockInSellUnit(product, variant),
+        packingName: variant.packing_name,
+        variantId: variant.id,
+        conversionFactor: factor,
+        unitType: "multiplier",
+      };
+    }
+
+    return {
+      price: product.sale_price_single,
+      purchasePrice: product.purchase_price_single || 0,
+      stock: getBaseStockUnits(product),
+    };
+  };
+
+  const getCartItemStockLimit = (item: CartItem): number => {
+    const product = products.find((p) => p.id === item.productId);
+    if (!product) return item.stock;
+    return resolveCartUnitMetrics(product, item.variantId || "base").stock;
+  };
+
+  useEffect(() => {
+    if (!products.length || cart.length === 0) return;
+    setCart((prev) =>
+      prev.map((item) => {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) return item;
+        const metrics = resolveCartUnitMetrics(product, item.variantId || "base");
+        if (metrics.stock === item.stock) return item;
+        const quantity =
+          !allowNegativeStock && item.quantity > metrics.stock
+            ? metrics.stock
+            : item.quantity;
+        return { ...item, stock: metrics.stock, quantity };
+      })
+    );
+  }, [products, allowNegativeStock, cart.length]);
 
   const filteredProducts = products.filter(p => {
     const query = searchQuery.toLowerCase().trim();
@@ -1025,13 +1094,17 @@ export default function POSPage() {
       return;
     }
 
-    const variantId = option?.id;
-    const price = option ? option.price : product.sale_price_single;
-    const stock = option ? option.stock : product.current_stock;
-    const packingName = option ? option.name : undefined;
-    const isAutoSubunit = option ? option.isAutoSubunit : false;
-    const conversionFactor = option ? option.conversionFactor : 1;
-    const unitType = option ? option.type : "multiplier";
+    const unitKey = option?.id ?? "base";
+    const {
+      price,
+      stock,
+      packingName,
+      variantId,
+      isAutoSubunit,
+      conversionFactor,
+      unitType,
+      purchasePrice,
+    } = resolveCartUnitMetrics(product, unitKey);
 
     const existingIndex = cart.findIndex(item =>
       variantId
@@ -1061,12 +1134,12 @@ export default function POSPage() {
           name: product.name,
           packingName,
           price,
-          purchasePrice: option ? option.purchasePrice : (product.purchase_price_single || 0),
+          purchasePrice: purchasePrice ?? (product.purchase_price_single || 0),
           quantity: 1,
           stock,
-          isAutoSubunit,
-          conversionFactor,
-          unitType,
+          isAutoSubunit: !!isAutoSubunit,
+          conversionFactor: conversionFactor ?? 1,
+          unitType: unitType ?? "multiplier",
           warranty: product.warranty || ""
         }
       ]);
@@ -1125,8 +1198,7 @@ export default function POSPage() {
       return;
     }
 
-    const price = product.sale_price_single;
-    const stock = product.current_stock;
+    const { price, stock, purchasePrice } = resolveCartUnitMetrics(product, "base");
 
     const existingIndex = cart.findIndex(item => item.productId === product.id && !item.variantId);
 
@@ -1150,7 +1222,7 @@ export default function POSPage() {
           productId: product.id,
           name: product.name,
           price,
-          purchasePrice: product.purchase_price_single || 0,
+          purchasePrice: purchasePrice ?? (product.purchase_price_single || 0),
           quantity: 1,
           stock
         }
@@ -1216,12 +1288,8 @@ export default function POSPage() {
       if (matchedProduct) {
         if (matchedVariant) {
           const options = getProductUnitOptions(matchedProduct);
-          const opt = options.find((o: any) => o.id === matchedVariant.id) || {
-            id: matchedVariant.id,
-            name: matchedVariant.packing_name,
-            price: matchedVariant.sale_price,
-            stock: matchedVariant.stock_quantity
-          };
+          const opt = options.find((o: any) => o.id === matchedVariant.id)
+            || resolveCartUnitMetrics(matchedProduct, matchedVariant.id);
           handleAddProductToCart(matchedProduct, opt);
         } else {
           handleAddBaseUnitDirectly(matchedProduct);
@@ -1402,7 +1470,7 @@ export default function POSPage() {
         if (e.key === "ArrowRight") {
           e.preventDefault();
           const item = cart[selectedCartItemIndex];
-          updateCartQty(selectedCartItemIndex, item.quantity + 1);
+          incrementCartQty(selectedCartItemIndex);
         }
         if (e.key === "ArrowLeft") {
           e.preventDefault();
@@ -1611,37 +1679,16 @@ export default function POSPage() {
     const product = products.find(p => p.id === item.productId);
     if (!product) return;
 
-    let price = product.sale_price_single;
-    let stock = product.current_stock;
-    let packingName: string | undefined = undefined;
-    let variantId: string | undefined = undefined;
-    let isAutoSubunit = false;
-    let conversionFactor = 1;
-    let unitType: "multiplier" | "divisor" = "multiplier";
-
-    if (value !== "base") {
-      if (value.startsWith("auto-")) {
-        const options = getProductUnitOptions(product);
-        const opt = options.find(o => o.id === value);
-        if (opt) {
-          price = opt.price;
-          stock = opt.stock;
-          packingName = opt.name;
-          variantId = opt.id;
-          isAutoSubunit = true;
-          conversionFactor = opt.conversionFactor;
-          unitType = opt.type;
-        }
-      } else {
-        const targetVariant = product.product_variants?.find(v => v.id === value);
-        if (targetVariant) {
-          price = targetVariant.sale_price;
-          stock = targetVariant.stock_quantity;
-          packingName = targetVariant.packing_name;
-          variantId = targetVariant.id;
-        }
-      }
-    }
+    const metrics = resolveCartUnitMetrics(product, value);
+    const {
+      price,
+      stock,
+      packingName,
+      variantId,
+      isAutoSubunit,
+      conversionFactor,
+      unitType,
+    } = metrics;
 
     // Check for duplicates with same variant/base and merge
     const duplicateIndex = cart.findIndex((item, i) =>
@@ -1668,13 +1715,13 @@ export default function POSPage() {
       updated[index] = {
         ...item,
         variantId,
-        packingName,
+        packingName: packingName || undefined,
         price,
         stock,
         quantity: cappedQty,
-        isAutoSubunit,
-        conversionFactor,
-        unitType
+        isAutoSubunit: !!isAutoSubunit,
+        conversionFactor: conversionFactor ?? 1,
+        unitType: unitType ?? "multiplier",
       };
       setCart(updated);
       toast.success(`Switched to ${packingName || product.unit || "Base"}`);
@@ -1687,13 +1734,32 @@ export default function POSPage() {
       return;
     }
     const item = cart[index];
-    if (!allowNegativeStock && newQty > item.stock) {
-      toast.warning(`Cannot exceed available stock of ${item.stock}`);
+    const stockLimit = getCartItemStockLimit(item);
+    let finalQty = newQty;
+
+    if (!allowNegativeStock) {
+      if (finalQty > stockLimit) {
+        if (finalQty > item.quantity) {
+          toast.warning(`Maximum available stock is ${stockLimit}`);
+        }
+        finalQty = stockLimit;
+      }
+    }
+
+    const updated = [...cart];
+    updated[index].quantity = finalQty;
+    setCart(updated);
+  };
+
+  const incrementCartQty = (index: number) => {
+    const item = cart[index];
+    if (!item) return;
+    const stockLimit = getCartItemStockLimit(item);
+    if (!allowNegativeStock && item.quantity >= stockLimit) {
+      toast.warning(`Maximum available stock is ${stockLimit}`);
       return;
     }
-    const updated = [...cart];
-    updated[index].quantity = newQty;
-    setCart(updated);
+    updateCartQty(index, item.quantity + 1);
   };
 
   const updateCartItemPrice = (index: number, newPrice: number) => {
@@ -1928,6 +1994,16 @@ export default function POSPage() {
       return;
     }
 
+    if (!allowNegativeStock && paymentMode !== "quotation") {
+      for (const item of cart) {
+        const limit = getCartItemStockLimit(item);
+        if (item.quantity > limit) {
+          toast.error(`${item.name}: maximum available stock is ${limit}`);
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const customerId = selectedCustomerId === "walkin" ? null : selectedCustomerId;
@@ -1955,27 +2031,25 @@ export default function POSPage() {
 
         if (oldItems) {
           for (const it of oldItems) {
-            if (it.variant_id) {
-              const product = products.find(p => p.id === it.product_id);
-              const variant = product?.product_variants?.find(v => v.id === it.variant_id);
+            const product = products.find((p) => p.id === it.product_id);
+            const variant = product?.product_variants?.find((v) => v.id === it.variant_id);
 
-              if (variant?.is_packing && variant.pack_size) {
-                await supabase.rpc("decrement_product_stock", {
-                  p_id: it.product_id,
-                  qty: -Number(it.quantity) * variant.pack_size
-                });
-              } else {
-                await supabase.rpc("decrement_variant_stock", {
-                  v_id: it.variant_id,
-                  qty: -Number(it.quantity)
-                });
-              }
-            } else {
-              await supabase.rpc("decrement_product_stock", {
-                p_id: it.product_id,
-                qty: -Number(it.quantity)
+            if (product && shouldDecrementVariantStock(product, variant, it.variant_id)) {
+              await supabase.rpc("decrement_variant_stock", {
+                v_id: it.variant_id,
+                qty: -Number(it.quantity),
               });
+              continue;
             }
+
+            const restoreBaseQty = product
+              ? baseUnitsToDecrement(product, variant, Number(it.quantity), it.variant_id)
+              : Number(it.quantity);
+
+            await supabase.rpc("decrement_product_stock", {
+              p_id: it.product_id,
+              qty: -restoreBaseQty,
+            });
           }
         }
 
@@ -2128,36 +2202,41 @@ export default function POSPage() {
 
       if (paymentMode !== "quotation") {
         for (const item of cart) {
-          if (item.variantId && !item.variantId.startsWith("auto-")) {
-            const product = products.find(p => p.id === item.productId);
-            const variant = product?.product_variants?.find(v => v.id === item.variantId);
+          const product = products.find((p) => p.id === item.productId);
+          const variant = product?.product_variants?.find((v) => v.id === item.variantId);
 
-            if (variant?.is_packing && variant.pack_size) {
-              await supabase.rpc("decrement_product_stock", {
-                p_id: item.productId,
-                qty: item.quantity * variant.pack_size
-              });
-            } else {
-              await supabase.rpc("decrement_variant_stock", {
-                v_id: item.variantId,
-                qty: item.quantity
-              });
-            }
-          } else {
+          if (item.variantId?.startsWith("auto-")) {
             let qtyToDecrement = item.quantity;
-            if (item.variantId?.startsWith("auto-") && item.conversionFactor) {
+            if (item.conversionFactor) {
               if (item.unitType === "divisor") {
                 qtyToDecrement = item.quantity / item.conversionFactor;
               } else {
                 qtyToDecrement = item.quantity * item.conversionFactor;
               }
             }
-
             await supabase.rpc("decrement_product_stock", {
               p_id: item.productId,
-              qty: qtyToDecrement
+              qty: qtyToDecrement,
             });
+            continue;
           }
+
+          if (product && shouldDecrementVariantStock(product, variant, item.variantId)) {
+            await supabase.rpc("decrement_variant_stock", {
+              v_id: item.variantId,
+              qty: item.quantity,
+            });
+            continue;
+          }
+
+          const qtyToDecrement = product
+            ? baseUnitsToDecrement(product, variant, item.quantity, item.variantId)
+            : item.quantity;
+
+          await supabase.rpc("decrement_product_stock", {
+            p_id: item.productId,
+            qty: qtyToDecrement,
+          });
         }
 
         const creditAmount = paymentMode === "credit"
@@ -2310,6 +2389,13 @@ export default function POSPage() {
       (c.phone && c.phone.includes(customerSearchQuery))
     )
   ];
+
+  const cartHasUnitChoices =
+    industryType === "karyana" ||
+    cart.some((item) => {
+      const p = products.find((pr) => pr.id === item.productId);
+      return !!p && getProductUnitOptions(p).length > 0;
+    });
 
   // Helper render function for Checkout Summary to avoid duplicate code
   const renderCheckoutSummaryContent = () => {
@@ -2491,14 +2577,14 @@ export default function POSPage() {
         {/* Payment Mode */}
         <div>
           <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Mode (F8)</label>
-          <div className={`grid ${industryType === "hardware" || industryType === "electronics" || hasEmi
+          <div className={`grid ${industryType === "hardware" || hasEmi
             ? "grid-cols-3"
             : "grid-cols-2"
             } gap-2`}>
             {[
               { id: "cash", label: "💵 Cash", color: "bg-emerald-600 border-emerald-600 shadow-emerald-500/20" },
               { id: "credit", label: "📒 Credit (Udhaar)", color: "bg-amber-600 border-amber-600 shadow-amber-500/20" },
-              ...((industryType === "electronics" || hasEmi) ? [{ id: "emi", label: "💳 EMI (اقساط)", color: "bg-indigo-600 border-indigo-600 shadow-indigo-500/20" }] : []),
+              ...(hasEmi ? [{ id: "emi", label: "💳 EMI (اقساط)", color: "bg-indigo-600 border-indigo-600 shadow-indigo-500/20" }] : []),
               ...(industryType === "hardware" ? [{ id: "quotation", label: "📄 Quotation (تخمینہ)", color: "bg-purple-600 border-purple-600 shadow-purple-500/20" }] : [])
             ].map(mode => (
               <button
@@ -2895,7 +2981,7 @@ export default function POSPage() {
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-400 text-[10px] font-black uppercase tracking-wider pb-2">
                       <th className="py-2.5 px-3">Product Name & Variant</th>
-                      {industryType === "karyana" && <th className="py-2.5 px-3 w-[140px]">Unit Type</th>}
+                      {cartHasUnitChoices && <th className="py-2.5 px-3 w-[140px]">Unit Type</th>}
                       <th className="py-2.5 px-3 w-[110px] text-right">Price (Rs)</th>
                       <th className="py-2.5 px-3 w-[140px] text-center">Quantity</th>
                       <th className="py-2.5 px-3 w-[110px] text-right">Total (Rs)</th>
@@ -2905,6 +2991,7 @@ export default function POSPage() {
                   <tbody>
                     {cart.map((item, idx) => {
                       const product = products.find(p => p.id === item.productId);
+                      const stockLimit = getCartItemStockLimit(item);
                       const isItemHighlighted = isCartFocused && selectedCartItemIndex === idx;
                       return (
                         <tr
@@ -2939,22 +3026,26 @@ export default function POSPage() {
                           </td>
 
                           {/* Unit Select */}
-                          {industryType === "karyana" && (
+                          {cartHasUnitChoices && (
                             <td className="py-3 px-3">
-                              <select
-                                value={item.variantId || "base"}
-                                onChange={(e) => handleCartItemUnitChange(idx, e.target.value)}
-                                onFocus={() => {
-                                  setIsCartFocused(true);
-                                  setSelectedCartItemIndex(idx);
-                                }}
-                                className="text-[11px] bg-white border border-slate-250 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold cursor-pointer"
-                              >
-                                <option value="base">{product?.unit || "Base"} (Rs {product?.sale_price_single})</option>
-                                {product && getProductUnitOptions(product).map(opt => (
-                                  <option key={opt.id} value={opt.id}>{opt.name} (Rs {opt.price})</option>
-                                ))}
-                              </select>
+                              {(industryType === "karyana") || (product && getProductUnitOptions(product).length > 0) ? (
+                                <select
+                                  value={item.variantId || "base"}
+                                  onChange={(e) => handleCartItemUnitChange(idx, e.target.value)}
+                                  onFocus={() => {
+                                    setIsCartFocused(true);
+                                    setSelectedCartItemIndex(idx);
+                                  }}
+                                  className="text-[11px] bg-white border border-slate-250 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold cursor-pointer"
+                                >
+                                  <option value="base">{product?.unit || "Base"} (Rs {product?.sale_price_single})</option>
+                                  {product && getProductUnitOptions(product).map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.name} (Rs {opt.price})</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 font-semibold">{product?.unit || "Base"}</span>
+                              )}
                             </td>
                           )}
 
@@ -3027,7 +3118,7 @@ export default function POSPage() {
                                   }}
                                   className="no-spin w-20 h-7 bg-white border-2 border-purple-300 rounded-lg px-2 text-[11px] font-extrabold focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-slate-800 text-center shadow-sm"
                                 />
-                                <span className="text-[8px] text-slate-400 font-semibold">Max: {item.stock}</span>
+                                <span className="text-[8px] text-slate-400 font-semibold">Max: {stockLimit}</span>
                               </div>
                             ) : (
                               <div className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5 shadow-sm">
@@ -3040,7 +3131,7 @@ export default function POSPage() {
                                 <CartQtyInput
                                   id={`cart-qty-input-search-${idx}`}
                                   value={item.quantity}
-                                  max={item.stock}
+                                  max={stockLimit}
                                   onChange={(val) => updateCartQty(idx, val)}
                                   allowDecimal={industryType === "karyana"}
                                   onFocus={() => { setIsCartFocused(true); setSelectedCartItemIndex(idx); }}
@@ -3053,14 +3144,20 @@ export default function POSPage() {
                                   className="text-[11px] font-extrabold w-12 text-center border-none focus:outline-none bg-transparent focus:ring-1 focus:ring-indigo-500/20 focus:bg-slate-50 rounded"
                                 />
                                 <button
-                                  onClick={() => updateCartQty(idx, item.quantity + 1)}
-                                  className="p-1 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors"
+                                  onClick={() => incrementCartQty(idx)}
+                                  disabled={!allowNegativeStock && item.quantity >= stockLimit}
+                                  className="p-1 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
                                 >
                                   <Plus size={11} />
                                 </button>
                               </div>
                             )}
-                            {!allowPriceEdit && <span className="block text-[8px] text-slate-400 mt-1 font-semibold">Stock: {item.stock}</span>}
+                            {!allowPriceEdit && (
+                              <span className="block text-[8px] text-slate-400 mt-1 font-semibold">
+                                Stock: {stockLimit}
+                                {!item.variantId && product?.unit ? ` ${product.unit}` : ""}
+                              </span>
+                            )}
                           </td>
 
                           {/* Row Total — editable when allowPriceEdit, back-calcs qty */}
@@ -3670,6 +3767,7 @@ export default function POSPage() {
               ) : (
                 cart.map((item, idx) => {
                   const product = products.find(p => p.id === item.productId);
+                  const stockLimit = getCartItemStockLimit(item);
                   const isItemHighlighted = isCartFocused && selectedCartItemIndex === idx;
 
                   return (
@@ -3733,7 +3831,7 @@ export default function POSPage() {
                           <CartQtyInput
                             id={`cart-qty-input-${idx}`}
                             value={item.quantity}
-                            max={item.stock}
+                            max={stockLimit}
                             onChange={(val) => updateCartQty(idx, val)}
                             allowDecimal={industryType === "karyana"}
                             onFocus={() => {
@@ -3751,8 +3849,9 @@ export default function POSPage() {
                             className="text-[11px] font-extrabold w-9 text-center border-none focus:outline-none bg-transparent focus:ring-1 focus:ring-indigo-500/20 focus:bg-slate-50 rounded"
                           />
                           <button
-                            onClick={() => updateCartQty(idx, item.quantity + 1)}
-                            className="p-0.5 text-slate-500 hover:bg-slate-50 rounded-md transition-colors"
+                            onClick={() => incrementCartQty(idx)}
+                            disabled={!allowNegativeStock && item.quantity >= stockLimit}
+                            className="p-0.5 text-slate-500 hover:bg-slate-50 rounded-md transition-colors disabled:opacity-30 disabled:pointer-events-none"
                           >
                             <Plus size={9.5} />
                           </button>
@@ -3853,7 +3952,10 @@ export default function POSPage() {
                         ) : (
                           <span>Rs {item.price} each</span>
                         )}
-                        <span className="ml-1 shrink-0">Max: {item.stock}</span>
+                        <span className="ml-1 shrink-0">
+                          Max: {stockLimit}
+                          {!item.variantId && product?.unit ? ` ${product.unit}` : ""}
+                        </span>
                       </div>
                     </div>
                   );

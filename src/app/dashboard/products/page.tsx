@@ -1915,11 +1915,17 @@ function ProductsPageContent() {
                               className="h-9 bg-white"
                             />
                           </div>
-                          <div className="col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800 font-medium">
+                          <div className="col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800 font-medium space-y-1">
                             {isUrdu 
                               ? `💡 فی یونٹ قیمت خود بخود نیچے طے ہو جائے گی: خرید = Rs ${boxPackSize > 0 ? (boxPurchasePrice / boxPackSize).toFixed(2) : '—'} / ${formData.unit || 'یونٹ'}`
                               : `💡 Prices per base unit (${formData.unit || 'unit'}) will be auto-calculated below: Purchase = ${boxPackSize > 0 ? `Rs ${(boxPurchasePrice / boxPackSize).toFixed(2)}` : '—'} / ${formData.unit || 'unit'}`
                             }
+                            <p className="text-amber-900/90 font-semibold border-t border-amber-200/80 pt-1.5 mt-1.5">
+                              {isUrdu
+                                ? `📌 ابتدائی اسٹاک ہمیشہ ${formData.unit || "یونٹ"} (بنیادی عدد) میں لکھیں — باکس کی تعداد نہیں۔ مثال: 3 باکس × ${boxPackSize || "?"} = ${boxPackSize > 0 ? 3 * boxPackSize : "—"} ${formData.unit || "یونٹ"}`
+                                : `📌 Opening stock is always in ${formData.unit || "base units"} (single pieces)—not number of boxes. Example: 3 boxes × ${boxPackSize || "?"} units = ${boxPackSize > 0 ? 3 * boxPackSize : "—"} ${formData.unit || "units"}`
+                              }
+                            </p>
                           </div>
                         </div>
                       )}
@@ -1953,16 +1959,46 @@ function ProductsPageContent() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
-                          {isUrdu ? `ابتدائی اسٹاک (${formData.unit || 'یونٹ'})` : `Opening Stock (${formData.unit || 'unit'})`}
+                          {isUrdu
+                            ? `ابتدائی اسٹاک — صرف ${formData.unit || "بنیادی یونٹ"} (باکس نہیں)`
+                            : `Opening Stock — ${formData.unit || "base unit"} only (not boxes)`}
                         </label>
                         <Input 
                           type="number" 
-                          placeholder="0" 
+                          placeholder={hasBoxPacking && boxPackSize > 0
+                            ? (isUrdu ? `مثال: 3 باکس = ${3 * boxPackSize}` : `e.g. 3 boxes = ${3 * boxPackSize}`)
+                            : "0"}
                           value={formData.has_imei ? productImeis.filter((i: any) => i.status !== "sold").length : (formData.current_stock || "")}
                           onChange={(e) => setFormData({...formData, current_stock: Math.max(0, parseFloat(e.target.value) || 0)})}
                           disabled={formData.has_imei}
                           className={formData.has_imei ? "bg-slate-100 cursor-not-allowed font-bold" : ""}
                         />
+                        {hasBoxPacking && boxPackSize > 0 && !formData.has_imei && (
+                          <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
+                            {isUrdu ? (
+                              <>
+                                POS پر ≈ <strong className="text-slate-700">{Math.floor((formData.current_stock || 0) / boxPackSize)}</strong> مکمل {boxPackingName || "باکس"}
+                                {(formData.current_stock || 0) % boxPackSize > 0 && (
+                                  <> + <strong className="text-slate-700">{(formData.current_stock || 0) % boxPackSize}</strong> الگ {formData.unit || "یونٹ"}</>
+                                )}
+                                {" "}({formData.current_stock || 0} کل {formData.unit || "یونٹ"})
+                              </>
+                            ) : (
+                              <>
+                                At POS: ≈ <strong className="text-slate-700">{Math.floor((formData.current_stock || 0) / boxPackSize)}</strong> full {boxPackingName || "box"}
+                                {(formData.current_stock || 0) % boxPackSize > 0 && (
+                                  <> + <strong className="text-slate-700">{(formData.current_stock || 0) % boxPackSize}</strong> loose {formData.unit || "units"}</>
+                                )}
+                                {" "}({formData.current_stock || 0} total {formData.unit || "units"})
+                              </>
+                            )}
+                          </p>
+                        )}
+                        {!hasBoxPacking && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {isUrdu ? "یہ وہی عدد ہے جو POS پر \"بنیادی یونٹ\" میں دکھے گا۔" : "Same count shown as stock when selling in base unit on POS."}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">

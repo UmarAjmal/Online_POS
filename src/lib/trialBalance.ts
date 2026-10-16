@@ -1,3 +1,31 @@
+export type NaturalBalanceSide = "debit" | "credit";
+
+/** Put signed balance in the correct debit or credit column (no negative Rs in a column). */
+export function splitTrialBalanceAmount(
+  amount: number,
+  naturalSide: NaturalBalanceSide
+): { debit: number; credit: number } {
+  const n = Number(amount) || 0;
+  if (naturalSide === "debit") {
+    if (n >= 0) return { debit: n, credit: 0 };
+    return { debit: 0, credit: Math.abs(n) };
+  }
+  if (n >= 0) return { debit: 0, credit: n };
+  return { debit: Math.abs(n), credit: 0 };
+}
+
+export function formatTrialBalanceCells(debit: number, credit: number): {
+  debitLabel: string;
+  creditLabel: string;
+} {
+  const d = Math.round(debit * 100) / 100;
+  const c = Math.round(credit * 100) / 100;
+  return {
+    debitLabel: d > 0 ? `Rs ${d.toLocaleString()}` : "-",
+    creditLabel: c > 0 ? `Rs ${c.toLocaleString()}` : "-",
+  };
+}
+
 export type TrialBalanceInput = {
   cashBalances: number[];
   receivable: number;
